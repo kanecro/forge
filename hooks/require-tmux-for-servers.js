@@ -13,8 +13,6 @@ try {
 
   // Patterns for long-running server processes
   const serverPatterns = [
-    /\bpnpm\s+dev\b/,
-    /\bpnpm\s+start\b/,
     /\bnpx\s+next\s+dev\b/,
     /\bnext\s+dev\b/,
     /\bnext\s+start\b/,
@@ -41,7 +39,7 @@ try {
   console.error(`Command: ${command}`);
   console.error('');
   console.error('Please run server processes inside tmux:');
-  console.error('  tmux new-session -d -s dev "pnpm dev"');
+  console.error('  tmux new-session -d -s dev "npm run dev"');
   console.error('');
   console.error('Or use background execution:');
   console.error('  Run with run_in_background: true');

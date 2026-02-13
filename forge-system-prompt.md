@@ -16,7 +16,7 @@
 - **クラウド**: Google Cloud Platform（GCP）
 - **言語**: TypeScript
 - **テスト**: Vitest + Playwright
-- **パッケージマネージャ**: pnpm
+- **パッケージマネージャ**: npm
 
 FastAPIは使用しません。Next.jsのRoute Handlers / Server Actionsでバックエンド処理を行います。
 
@@ -314,7 +314,7 @@ description: "仕様書のタスクリストに基づきTDD駆動で実装する
 #### Step 3: タスク間チェックポイント
 
 - 3タスクごとに全テストを実行して回帰がないか確認
-- ビルドが通るか確認（`pnpm build`）
+- ビルドが通るか確認（`npm run build`）
 - 失敗した場合はそのタスクの修正を優先
 
 #### Step 4: 完了
@@ -401,11 +401,11 @@ description: "テストスイートを実行し、カバレッジと結果を検
 
 以下のワークフローを実装してください：
 
-1. **ユニットテスト実行**: `pnpm vitest run`
-2. **型チェック**: `pnpm tsc --noEmit`
-3. **リント**: `pnpm eslint .`
-4. **ビルド検証**: `pnpm build`
-5. **E2Eテスト実行**（該当する場合）: `pnpm playwright test`
+1. **ユニットテスト実行**: `npx vitest run`
+2. **型チェック**: `npx tsc --noEmit`
+3. **リント**: `npx eslint .`
+4. **ビルド検証**: `npm run build`
+5. **E2Eテスト実行**（該当する場合）: `npx playwright test`
 6. **カバレッジ確認**: 80%以上を目標
 
 **verification-before-completion**:
@@ -935,7 +935,7 @@ description: "Use when working with [technology/framework] files ([file patterns
 - XSS防止: `dangerouslySetInnerHTML` 禁止（例外は明示的なレビュー後のみ）
 - CSRF: Server Actionsは自動保護、Route Handlersは明示的に対策
 - 認証: middleware.tsでルートレベルの保護
-- 依存関係: `pnpm audit` でゼロ脆弱性を維持
+- 依存関係: `npm audit` でゼロ脆弱性を維持
 ```
 
 ### rules/common/performance.md
@@ -1111,7 +1111,7 @@ description: "Use when working with [technology/framework] files ([file patterns
 
 ### require-tmux-for-servers.js
 
-`pnpm dev`、`pnpm start`、`next dev` などの長時間実行プロセスが tmux セッション内で実行されていない場合にブロックする。
+`npm run dev`、`npm start`、`next dev` などの長時間実行プロセスが tmux セッション内で実行されていない場合にブロックする。
 
 ### gate-git-push.js
 

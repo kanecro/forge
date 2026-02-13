@@ -16,7 +16,7 @@ Forge は、設計から実装・レビュー・テスト・学習までの開�
 | クラウド | Google Cloud Platform（GCP） |
 | 言語 | TypeScript |
 | テスト | Vitest + Playwright |
-| パッケージマネージャ | pnpm |
+| パッケージマネージャ | npm |
 
 ---
 
@@ -200,11 +200,11 @@ rm -rf ~/.claude/commands ~/.claude/agents ~/.claude/skills \
 
 以下を順番に実行し、**実際の実行結果を貼り付けて**完了を証明します。
 
-1. ユニットテスト: `pnpm vitest run`
-2. 型チェック: `pnpm tsc --noEmit`
-3. リント: `pnpm eslint .`
-4. ビルド検証: `pnpm build`
-5. E2E テスト: `pnpm playwright test`
+1. ユニットテスト: `npx vitest run`
+2. 型チェック: `npx tsc --noEmit`
+3. リント: `npx eslint .`
+4. ビルド検証: `npm run build`
+5. E2E テスト: `npx playwright test`
 6. カバレッジ: 80% 以上を目標
 
 失敗がある場合は根本原因を分析し、修正→再テストを繰り返します。
@@ -312,7 +312,7 @@ rm -rf ~/.claude/commands ~/.claude/agents ~/.claude/skills \
 |--------|-----------|------|
 | block-unnecessary-files | Write 前 | プロジェクトルートへの不要な .md/.txt 作成をブロック（`docs/`、`openspec/` 配下は許可） |
 | detect-console-log | Write 後 | .ts/.tsx ファイル内の `console.log` を警告（`console.error`/`console.warn` は許可） |
-| require-tmux-for-servers | Bash 前 | `pnpm dev` 等の長時間プロセスを tmux 外で実行するのをブロック |
+| require-tmux-for-servers | Bash 前 | `npm run dev` 等の長時間プロセスを tmux 外で実行するのをブロック |
 | gate-git-push | Bash 前 | `git push` 時にレビュー完了を確認。`--force` はブロック |
 
 ---

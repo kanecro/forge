@@ -54,7 +54,7 @@ openspec/
 | coding-style.md | ファイルサイズ制限（200-400行推奨/800行上限）、命名規約（PascalCase/camelCase/UPPER_SNAKE_CASE）、インポート順序、TODO形式、コメント規約                            |
 | git-workflow.md | Conventional Commits形式（`<type>(<scope>): <説明>`）、ブランチ戦略（main/develop/feature/fix/chore）、コミット粒度、PR規約                                         |
 | testing.md      | TDDワークフロー（RED→GREEN→REFACTOR）、Vitest/Playwright/Testing Library使い分け、AAA(Arrange/Act/Assert)パターン、カバレッジ目標80%+、テストファイル配置規約       |
-| security.md     | シークレット管理（.env.local/Secret Manager）、Zodバリデーション必須、XSS/CSRF対策、Prismaパラメータ化クエリ、`dangerouslySetInnerHTML`禁止、`pnpm audit`ゼロ脆弱性 |
+| security.md     | シークレット管理（.env.local/Secret Manager）、Zodバリデーション必須、XSS/CSRF対策、Prismaパラメータ化クエリ、`dangerouslySetInnerHTML`禁止、`npm audit`ゼロ脆弱性 |
 | performance.md  | Server Components優先、`next/image`必須、動的インポート、N+1防止（select+明示的リレーション）、キャッシュ戦略（revalidate/unstable_cache）、Web Vitals目標値        |
 | escalation.md   | エスカレーション3段階（必須/状況依存/自律判断OK）、フェーズ別トリガー条件、エスカレーション形式テンプレート                                                         |
 
@@ -126,7 +126,7 @@ openspec/
 | ------------------------ | ------- | ------------------------------------------------------------------------------------- |
 | block-unnecessary-files  | Write前 | プロジェクトルートへの `.md`/`.txt` 作成をブロック（`docs/`, `openspec/` 配下は許可） |
 | detect-console-log       | Write後 | `.ts`/`.tsx` 内の `console.log` を警告（`console.error`/`console.warn` は許可）       |
-| require-tmux-for-servers | Bash前  | `pnpm dev` 等の長時間プロセスを tmux 外で実行するのをブロック                         |
+| require-tmux-for-servers | Bash前  | `npm run dev` 等の長時間プロセスを tmux 外で実行するのをブロック                         |
 | gate-git-push            | Bash前  | `git push --force` をブロック、通常 push 時にチェックリスト表示                       |
 
 ---
@@ -198,7 +198,7 @@ openspec/
 - テスト前にコードを書かない（TDD: RED → GREEN → REFACTOR）
 - テストをスキップ・無効化して通過させない
 - TODO/モック/スタブを本実装に残さない
-- `pnpm tsc --noEmit` をコミット前に実行
+- `npx tsc --noEmit` をコミット前に実行
 
 ---
 
