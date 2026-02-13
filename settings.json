@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-unnecessary-files.js \"$TOOL_INPUT\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/require-tmux-for-servers.js \"$TOOL_INPUT\""
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gate-git-push.js \"$TOOL_INPUT\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/detect-console-log.js \"$TOOL_INPUT\""
+          }
+        ]
+      }
+    ]
+  }
+}
