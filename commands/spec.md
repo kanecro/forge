@@ -96,14 +96,45 @@ Sub Agents モードでは、Phase 1b の結果を統合する前に以下の観
 
 **Sub Agents モード**: Main Agent がリサーチ結果を統合し、`openspec/changes/<change-name>/` 配下に以下の3ファイルを出力する:
 
-1. `specs/<feature>/delta-spec.md` -- デルタ要件（ADDED/MODIFIED/REMOVED + Given/When/Then）
+1. `specs/<feature>/delta-spec.md` -- デルタ要件（ADDED/MODIFIED/REMOVED + シナリオ種別テンプレート）
 2. `design.md` -- リサーチサマリー + 技術設計
 3. `tasks.md` -- タスクリスト
 
-### Phase 3: ユーザー確認
+### Phase 3: 仕様検証（spec-validator）
 
-仕様書を出力した後、**ユーザーが明示的に承認するまで実装に進まない**。
-「この仕様で実装を開始してよいですか？」と確認する。
+spec-validator を起動し、delta-spec の網羅性を敵対的に検証する。
+
+**Teams モード**: spec-validator を teammate として起動する。spec-validator は delta-spec / design.md / tasks.md / 累積スペックを読み込み、Spec Validation Report を出力する。
+
+**Sub Agents モード**: Task(spec-validator) を起動する。入力として change-name を渡す。
+
+spec-validator は以下を検証する:
+- EARS ベースの 4 品質基準（テスト可能性、振る舞い中心、一意解釈性、十分な完全性）
+- 7 つの検証項目（エラーシナリオ確認、境界値検出、非機能要件確認、シナリオ間矛盾検出、既存スペック整合性、未指定シナリオ列挙、タスク粒度検証）
+
+### Phase 4: 修正ループ
+
+Phase 3 の検証結果に基づき、仕様の修正を行う。
+
+**Teams モード**: spec-validator が spec-writer に SendMessage で修正指示を送信する。spec-writer が修正し、spec-validator が再検証する。最大 2 往復で収束させる。「要確認」項目がある場合は spec-validator が Main Agent に SendMessage でエスカレーションし、Main Agent が AskUserQuestion でユーザーに確認する。
+
+**Sub Agents モード**: spec-validator の Spec Validation Report に基づき、Main Agent が修正すべき項目を特定する。
+- 「要修正」項目: Task(spec-writer) を再起動して修正を委譲する。修正後、Task(spec-validator) を再起動して再検証する。最大 2 往復。
+- 「要確認」項目: AskUserQuestion でユーザーに確認し、回答に基づいて Task(spec-writer) に修正を委譲する。
+
+修正ループ完了後、最終版の Spec Validation Report を保持して Phase 5 に進む。
+
+### Phase 5: ユーザー確認
+
+検証済みの仕様 + Spec Validation Report をユーザーに提示し、**ユーザーが明示的に承認するまで実装に進まない**。
+
+提示内容:
+1. 生成されたファイルの場所（delta-spec.md, design.md, tasks.md）
+2. Spec Validation Report のカバレッジサマリー
+3. 修正ループで解消された項目の概要
+4. 残存する注意事項（もしあれば）
+
+「この仕様で実装を開始してよいですか?」と確認する。
 
 ## デルタスペック形式
 
@@ -114,28 +145,61 @@ Sub Agents モードでは、Phase 1b の結果を統合する前に以下の観
 
 ## ADDED Requirements
 
-### Requirement: [要件名]
+### Requirement: REQ-001 [要件名]
 [RFC 2119: SHALL, SHOULD, MAY]
 
-#### Scenario: [シナリオ名]
-- **GIVEN** [前提条件]
-- **WHEN** [アクション]
-- **THEN** [期待結果]
+#### Happy Path Scenarios
+- **GIVEN** [前提条件] **WHEN** [アクション] **THEN** [期待結果]
+
+#### Error Scenarios（必須）
+- **GIVEN** [正常な前提] **WHEN** [異常入力/操作] **THEN** [エラー処理の期待結果]
+- **GIVEN** [外部依存の障害] **WHEN** [操作] **THEN** [フォールバックの期待結果]
+
+#### Boundary Scenarios（該当する場合）
+- **GIVEN** [境界値条件] **WHEN** [操作] **THEN** [期待結果]
+
+#### Non-Functional Requirements（該当する場合）
+- **PERFORMANCE**: [応答時間/スループット要件]
+- **ACCESSIBILITY**: [アクセシビリティ要件]
+- **ERROR_UX**: [ユーザーへのエラー表示要件]
 
 ## MODIFIED Requirements
 
-### Requirement: [要件名]
+### Requirement: REQ-XXX [要件名]
 [変更後の記述]
 **変更理由**: [理由]
 
-#### Scenario: [シナリオ]
+#### Happy Path Scenarios
 - **GIVEN** / **WHEN** / **THEN**
+
+#### Error Scenarios（必須）
+- **GIVEN** / **WHEN** / **THEN**
+
+#### Boundary Scenarios（該当する場合）
+- **GIVEN** / **WHEN** / **THEN**
+
+#### Non-Functional Requirements（該当する場合）
+- ...
 
 ## REMOVED Requirements
 
 ### Requirement: [要件名]
 **削除理由**: [理由]
 ```
+
+### シナリオ種別ルール
+
+- **Happy Path Scenarios**: 正常系。全要件で必須
+- **Error Scenarios**: 異常系。全要件で**必須**。異常入力、外部依存障害、権限不足等のケースを最低1つ含める
+- **Boundary Scenarios**: 数値入力、文字列長、リスト件数など境界値が存在する場合に記述
+- **Non-Functional Requirements**: UI変更時のアクセシビリティ、API変更時のパフォーマンス等、該当する場合に記述
+
+### 要件 ID（REQ-XXX）ルール
+
+- 形式: `REQ-XXX`（XXX は変更単位内の連番、001から開始）
+- ADDED / MODIFIED の全要件に付与する（REMOVED は任意）
+- tasks.md の各タスクの「関連要件」に要件 ID を含める
+- 要件 ID は変更単位（change-name）内で一意であればよい
 
 ## 設計ドキュメント形式
 
@@ -189,7 +253,9 @@ Sub Agents モードでは、Phase 1b の結果を統合する前に以下の観
 - **対象ファイル**: `src/app/xxx/page.tsx`（新規 or 既存）
 - **やること**: [具体的な変更内容]
 - **検証方法**: [テストコマンド]
+- **関連要件**: REQ-001, REQ-003
 - **関連スペック**: `specs/<feature>/delta-spec.md#[要件名]`
+- **依存**: [依存タスク番号。なければ「なし」]
 ```
 
 ## タスク分解のルール

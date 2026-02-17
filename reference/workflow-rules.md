@@ -1,6 +1,6 @@
-# Workflow Rules
+# Forge Workflow Rules
 
-Lattice ワークフローのルール。セッション管理、タスク管理、コラボレーション。
+Forge ワークフローのルール。セッション管理、タスク管理、コラボレーション。
 
 ---
 
@@ -9,116 +9,102 @@ Lattice ワークフローのルール。セッション管理、タスク管理
 ### Session Start
 
 ```
-1. 自動実行 (session-start.js):
-   - セッション統計を報告
-   - 関連コンテキストをロード
-   - 保留中のエスカレーションを表示
-
-2. 手動確認:
-   /action-status          # フェーズ確認
-   /checkpoint-list       # 前回のチェックポイント確認
+1. 作業ディレクトリを確認
+2. CLAUDE.md を確認
+3. OpenSpec の状態を確認（openspec/ ディレクトリ）
+4. 直近のコミットログを確認
 ```
 
 ### During Session
 
 ```
-1. フェーズに沿った作業
-   - spec: 仕様書作成
-   - design: 設計文書作成
-   - implement: コード実装
-   - integrate: 統合テスト
+1. Forge パイプラインに沿った作業
+   - /brainstorm: アイデア出し・提案書作成
+   - /spec: 仕様書・設計書・タスクリスト作成
+   - /implement: TDD駆動実装
+   - /review: 7並列レビュー
+   - /test: テスト実行・証明
+   - /compound: 学び記録・スペックマージ
 
-2. 定期チェックポイント (30分ごと推奨)
-   /checkpoint [name]
+2. 小さな単位でコミット
+   - 1コミット = 1つの論理的変更
 
-3. パターン記録
-   - 成功パターン → log_pattern
-   - 判断 → log_decision
-   - 不明点 → log_escalation
+3. Compound Learning
+   - 防げたはずの失敗 → docs/compound/ に記録
 ```
 
 ### Session End
 
 ```
-1. 自動実行 (session-end.js):
-   - チェックポイント保存
-   - パターンを蒸留キューにプッシュ
-   - MEMORY.md に同期
-
-2. 推奨:
-   /checkpoint session-end --description "今日の作業サマリー"
+1. 未コミットの変更を確認
+2. テストが通過していることを確認
+3. 必要に応じてコミット
 ```
 
 ---
 
 ## Task Management
 
-### Task Structure
+### OpenSpec Structure
 
 ```
-Plan (計画)
-└── Phase (フェーズ)
-    └── Task (タスク)
-        └── Todo (TODO)
+openspec/
+├── project.md              # プロジェクトコンテキスト
+├── specs/                  # 累積スペック（マージ済みの正式仕様）
+└── changes/                # 変更単位の作業ディレクトリ
+    ├── <change-name>/      # アクティブな変更
+    │   ├── proposal.md     # /brainstorm で生成
+    │   ├── design.md       # /spec で生成
+    │   ├── tasks.md        # /spec で生成
+    │   └── specs/          # デルタスペック
+    └── archive/            # /compound で完了分をアーカイブ
 ```
 
 ### Task Workflow
 
 ```
-1. タスク作成
+1. タスク作成（/spec で tasks.md に生成）
    - 明確な目標を定義
    - 完了条件を明記
    - 依存関係を特定
 
-2. タスク実行
-   - フェーズに適した作業のみ
+2. タスク実行（/implement で TDD 実装）
+   - RED → GREEN → REFACTOR
    - 小さな単位で進行
-   - 定期的に進捗を記録
+   - テスト通過を確認してコミット
 
 3. タスク完了
-   - 完了条件を満たしているか確認
-   - 検証を通過
-   - チェックポイント作成
+   - 全テスト通過
+   - 型チェック通過
+   - デルタスペックとの照合
 ```
-
-### Task Status
-
-| Status | Description |
-|--------|-------------|
-| pending | 未着手 |
-| in_progress | 作業中 |
-| blocked | ブロック中 |
-| review | レビュー待ち |
-| completed | 完了 |
 
 ---
 
-## Phase Transitions
+## Forge Pipeline
 
-### Transition Requirements
-
-| From → To | Requirements |
-|-----------|--------------|
-| init → spec | プロジェクト構造完成、policy.md 作成 |
-| spec → design | 仕様書完成、ユーザーストーリー定義 |
-| design → implement | 設計書完成、インターフェース定義 |
-| implement → integrate | 機能実装完了、ユニットテスト通過 |
-| integrate → complete | 統合テスト通過、ドキュメント完成 |
-
-### Transition Workflow
+### Pipeline Flow
 
 ```
-1. 現在のフェーズの Exit Criteria を確認
-   /action-status
-
-2. 検証を実行
-   /verify full
-
-3. すべて通過したらフェーズ遷移
-   /workflow-guide
-
-4. 自動でチェックポイントが作成される
+/brainstorm → /spec → /implement → /review → /test → /compound
 ```
+
+### Pipeline Rules
+
+| Stage | Input | Output | Approval |
+|-------|-------|--------|----------|
+| /brainstorm | ユーザーの要望 | proposal.md | ユーザー承認必須 |
+| /spec | proposal.md | design.md, tasks.md, delta-specs | ユーザー承認必須 |
+| /implement | tasks.md, delta-specs | 実装コード + テスト | 自律実行 |
+| /review | 実装コード | レビュー結果 | 自律実行 |
+| /test | 実装コード | テスト実行証明 | 自律実行 |
+| /compound | 全成果物 | 学び記録 + スペックマージ | 自律実行 |
+
+### /ship (完全自律パイプライン)
+
+上記を連鎖実行。ただし:
+- /brainstorm と /spec の後はユーザー承認必須
+- /implement 以降は自律実行（テスト失敗時は最大3回リトライ）
 
 ---
 
@@ -130,93 +116,30 @@ Plan (計画)
 # 変更前の状態を確認
 git status
 git diff
-
-# 現在のフェーズを確認
-/action-status
 ```
 
 ### After Code Changes
 
 ```bash
-# クイック検証
-/verify quick
+# テスト実行
+npm test
 
-# 標準検証 (推奨)
-/verify standard
-
-# 問題があれば修正
-# 再度検証
+# 型チェック
+npx tsc --noEmit
 ```
 
 ### Before Commit
 
 ```bash
-# 完全検証
-/verify full
+# テスト + 型チェック
+npm test && npx tsc --noEmit
 
-# すべて通過したらコミット
+# 変更内容を確認
+git diff
+
+# コミット
 git add <files>
 git commit -m "type(scope): description"
-```
-
-### Before Phase Advance
-
-```bash
-# 完全検証 (必須)
-/verify full
-
-# Exit Criteria 確認
-/action-status
-
-# フェーズ遷移
-/workflow-guide
-```
-
----
-
-## Pattern Learning Workflow
-
-### Pattern Discovery
-
-```
-1. パターンを発見
-   - 成功した実装アプローチ
-   - 効果的な問題解決方法
-   - 再利用可能な設計パターン
-
-2. パターンを記録
-   log_pattern({
-     type: 'implementation',
-     summary: 'パターンの要約',
-     context: '適用コンテキスト',
-     confidence: 0.7
-   })
-
-3. パターンを適用
-   - 類似の状況で再利用
-   - 結果を観察
-   - 信頼度を更新
-```
-
-### Pattern Evolution
-
-```
-観察 → 記録 → 検証 → 蒸留 → ポリシー
-  ↑                        ↓
-  ←←←← フィードバック ←←←←
-```
-
-### Distillation Workflow
-
-```bash
-# パターン状態を確認
-/pattern-status
-
-# 蒸留を実行
-/distill
-
-# 結果を確認
-/pattern-status
 ```
 
 ---
@@ -228,173 +151,71 @@ git commit -m "type(scope): description"
 ```
 1. 不明点や判断が必要な場面を特定
 
-2. エスカレーションを記録
-   log_escalation({
-     question: '何を確認したいか',
-     context: '背景情報',
-     options: ['選択肢1', '選択肢2'],
-     recommendation: '推奨案',
-     blocking: true/false
-   })
+2. AskUserQuestion で確認
+   - 背景情報を提供
+   - 選択肢を提示
+   - 推奨案を明記
 
 3. ブロッキングの場合は回答を待つ
 4. 非ブロッキングの場合は他の作業を継続
 ```
 
-### Resolving Escalation
+### Teams 内エスカレーション
 
 ```
-1. 回答を受け取る
-
-2. 決定を記録
-   log_decision({
-     question: 'オリジナルの質問',
-     decision: '決定内容',
-     rationale: '理由',
-     confidence: 0.9
-   })
-
-3. 作業を継続
-```
-
----
-
-## Checkpoint Workflow
-
-### Manual Checkpoint
-
-```bash
-# 名前付きチェックポイント
-/checkpoint pre-refactor
-
-# 説明付き
-/checkpoint milestone-1 --description "認証機能完成"
-
-# タグ付き
-/checkpoint release-candidate --tags release,tested
-```
-
-### Automatic Checkpoints
-
-| Trigger | Checkpoint Name |
-|---------|-----------------|
-| フェーズ遷移 | auto-phase-{phase} |
-| セッション終了 | auto-session-end |
-| コンテキスト圧縮前 | auto-pre-compact |
-| エスカレーション解決 | auto-escalation-{id} |
-
-### Checkpoint Restoration
-
-```bash
-# チェックポイント一覧
-/checkpoint-list
-
-# 特定のチェックポイントを復元
-/checkpoint-restore chk_20240118_143000
-
-# 名前で復元
-/checkpoint-restore pre-refactor
-```
-
----
-
-## Knowledge Synchronization
-
-### Local → Global
-
-```
-1. プロジェクト固有のパターンを蓄積
-
-2. 高信頼度パターンを蒸留
-   /distill
-
-3. グローバルナレッジに昇格 (自動)
-   - 信頼度 >= 0.8
-   - 証拠数 >= 5
-   - 複数プロジェクトで有効
-```
-
-### Global → Local
-
-```
-1. セッション開始時に自動ロード
-   - ファイルパターンに基づく
-   - キーワードに基づく
-   - フェーズに基づく
-
-2. 必要に応じて手動検索
-   search_knowledge({ query: '認証パターン' })
+Team Member（疑問発見）
+  | SendMessage（選択肢を含めて送信）
+  v
+Main Agent（チームリーダー）
+  | AskUserQuestion（選択肢をそのまま提示）
+  v
+ユーザー（回答）
+  |
+  v
+Main Agent
+  | SendMessage（回答をそのまま返信）
+  v
+Team Member（作業再開）
 ```
 
 ---
 
 ## Collaboration Workflow
 
+### Context Isolation (2層アーキテクチャ)
+
+```
+Main Agent（オーケストレーション層）
+  ├─ [Teams モード] エージェント間通信による協調
+  └─ [Sub Agents モード] 並列独立実行
+```
+
 ### Handoff Pattern
 
 ```
-1. チェックポイント作成
-   /checkpoint handoff-to-team --description "現状のサマリー"
-
-2. ドキュメント更新
-   - README.md に進捗を記録
-   - 保留事項を明記
-   - 次のステップを記載
-
-3. Git コミット
-   git commit -m "chore: checkpoint for handoff"
-```
-
-### Resume Pattern
-
-```
-1. 最新のチェックポイントを確認
-   /checkpoint-list
-
-2. チェックポイントを復元
-   /checkpoint-restore <checkpoint-id>
-
-3. コンテキストを確認
-   /action-status
-   /pattern-status
+1. コミット作成
+2. 進捗を記録
+3. 保留事項を明記
+4. 次のステップを記載
 ```
 
 ---
 
-## Error Recovery
+## Compound Learning
 
-### Build Failure
+### 記録タイミング
 
-```
-1. エラーメッセージを確認
+- 防げたはずの失敗が起きた時
+- 100ドル超の推定コストの失敗
 
-2. 最後の成功チェックポイントを特定
-   /checkpoint-list
+### 記録先
 
-3. 必要に応じて復元
-   /checkpoint-restore <checkpoint-id>
+- `docs/compound/YYYY-MM-DD-<topic>.md`
 
-4. 問題を修正
+### エスカレーション
 
-5. 検証
-   /verify standard
-```
-
-### Phase Violation
-
-```
-1. 違反内容を確認
-
-2. オプションを評価:
-   a. 現在のフェーズを完了 (推奨)
-   b. 作業をフェーズに適した形に調整
-   c. 強制進行 (非推奨)
-
-3. 選択した対応を実行
-
-4. フェーズ状態を確認
-   /action-status
-```
+- コストが100ドル超なら、rules/reference/skills/hooks の更新を提案
+- ユーザー承認後に適用
 
 ---
 
@@ -402,20 +223,21 @@ git commit -m "type(scope): description"
 
 ### Do
 
-- ✅ フェーズに沿った作業を行う
-- ✅ 定期的にチェックポイントを作成
-- ✅ パターンを記録・蓄積する
-- ✅ 不明点はエスカレーションする
-- ✅ 検証を通過してからコミット
+- フェーズに沿った作業を行う
+- TDD を厳守する（RED → GREEN → REFACTOR）
+- 小さな単位でコミット
+- 不明点はエスカレーションする
+- 検証を通過してからコミット
+- Compound Learning で学びを記録
 
 ### Don't
 
-- ❌ フェーズをスキップする
-- ❌ 検証なしでコミットする
-- ❌ エスカレーションを無視する
-- ❌ パターンを記録せずに進行する
-- ❌ チェックポイントなしで大きな変更をする
+- フェーズをスキップする
+- テスト前にコードを書く
+- 検証なしでコミットする
+- エスカレーションを無視する
+- TODO/モック/スタブを本実装に残す
 
 ---
 
-_Workflow Rules: セッション管理 × フェーズ規律 × 継続学習_
+_Forge Workflow Rules: パイプライン規律 x TDD x Compound Learning_

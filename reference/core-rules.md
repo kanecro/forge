@@ -1,51 +1,43 @@
-# Lattice Core Rules
+# Forge Core Rules
 
-Lattice システムの中核ルール。すべてのプロジェクトで適用される基本ルール。
+Forge ワークフローシステムの中核ルール。すべてのプロジェクトで適用される基本ルール。
 
 ---
 
 ## Rule Priority System
 
-**🔴 CRITICAL**: セキュリティ、データ安全性、本番影響 - 絶対に妥協しない
-**🟡 IMPORTANT**: 品質、保守性、専門性 - 強く推奨
-**🟢 RECOMMENDED**: 最適化、スタイル、ベストプラクティス - 実用的な時に適用
+- **CRITICAL**: セキュリティ、データ安全性、本番影響 - 絶対に妥協しない
+- **IMPORTANT**: 品質、保守性、専門性 - 強く推奨
+- **RECOMMENDED**: 最適化、スタイル、ベストプラクティス - 実用的な時に適用
 
 ---
 
 ## Phase Discipline
 
-**Priority**: 🔴 **Triggers**: すべての開発作業
+**Priority**: CRITICAL **Triggers**: すべての開発作業
 
-### Phase Workflow
+### Forge Workflow
 
 ```
-init → spec → design → implement → integrate → complete
+/brainstorm → /spec → /implement → /review → /test → /compound
 ```
 
 ### Phase Rules
 
 - **現在のフェーズに適した作業のみ実行**
-  - spec フェーズで実装を始めない
-  - design フェーズでコードを書かない
-  - implement フェーズで仕様を変更しない
+  - /spec フェーズで実装を始めない
+  - /brainstorm フェーズでコードを書かない
+  - /implement フェーズで仕様を変更しない
 
 - **フェーズ遷移前に検証必須**
-  - `/verify` コマンドで検証を実行
+  - テスト通過・型チェック通過を確認
   - すべてのチェックが通過してから遷移
-
-- **違反検出時の対応**
-  1. 現在のフェーズを完了（推奨）
-  2. 作業をフェーズに適した形に調整
-  3. 強制進行（非推奨）
-
-✅ **Right**: spec フェーズで仕様書を書く → design フェーズで設計する → implement フェーズでコードを書く
-❌ **Wrong**: spec フェーズでいきなりコードを書き始める
 
 ---
 
 ## Escalation Rules
 
-**Priority**: 🔴 **Triggers**: 判断が必要な場面
+**Priority**: CRITICAL **Triggers**: 判断が必要な場面
 
 ### Always Autonomous (自律判断OK)
 
@@ -73,76 +65,11 @@ init → spec → design → implement → integrate → complete
 | 0.5-0.7 | 影響大なら要エスカレーション |
 | < 0.5 | 必ずエスカレーション |
 
-✅ **Right**: 不明確な要件 → エスカレーション → 確認後に実装
-❌ **Wrong**: 不明確な要件 → 推測で実装
-
----
-
-## Checkpoint Discipline
-
-**Priority**: 🟡 **Triggers**: セッション管理
-
-### When to Checkpoint
-
-| Situation | Action |
-|-----------|--------|
-| フェーズ遷移完了 | 必須 |
-| リスクのある操作前 | 必須 |
-| 長時間セッション (> 2h) | 推奨 |
-| コンテキスト圧縮前 | 自動 |
-| 重要なマイルストーン後 | 推奨 |
-| エスカレーション解決後 | 推奨 |
-
-### Checkpoint Contents
-
-```yaml
-checkpoint:
-  phase: current_phase
-  active_tasks: [task_list]
-  recent_patterns: [pattern_ids]
-  blockers: [blocker_list]
-  open_questions: [questions]
-  working_files: [file_list]
-  git_state: {branch, uncommitted}
-```
-
-✅ **Right**: リスキーな操作前に `/checkpoint` を実行
-❌ **Wrong**: チェックポイントなしで大きな変更を実行
-
----
-
-## Pattern Learning
-
-**Priority**: 🟢 **Triggers**: パターンの発見・適用
-
-### Pattern Recording
-
-- 成功したパターンを `log_pattern` で記録
-- 判断を `log_decision` で記録
-- 信頼度を証拠に基づいて更新
-
-### Pattern Evolution
-
-```
-観察 → パターン記録 → 証拠蓄積 → 信頼度向上 → ポリシー蒸留
-```
-
-### Distillation Criteria
-
-| Criteria | Threshold |
-|----------|-----------|
-| 最小信頼度 | 0.7 |
-| 最小証拠数 | 3 |
-| カテゴリ一致 | 必須 |
-
-✅ **Right**: パターンを記録 → 複数回確認 → ポリシーに昇格
-❌ **Wrong**: 一度きりのパターンをすぐにポリシー化
-
 ---
 
 ## Verification Gates
 
-**Priority**: 🟡 **Triggers**: コード変更、フェーズ遷移
+**Priority**: IMPORTANT **Triggers**: コード変更、フェーズ遷移
 
 ### Verification Levels
 
@@ -150,59 +77,30 @@ checkpoint:
 |-------|--------|----------|
 | Quick | Lint | 小さな変更 |
 | Standard | Lint + TypeCheck | 通常の変更 |
-| Full | Lint + TypeCheck + Tests + Coverage + Security | フェーズ遷移前 |
+| Full | Lint + TypeCheck + Tests + Coverage | フェーズ遷移前 |
 
 ### Before Commit
 
 ```bash
 # 最低限の検証
-/verify quick
+npx tsc --noEmit
 
 # 推奨
-/verify standard
+npm test
 ```
 
 ### Before Phase Advance
 
 ```bash
 # 必須
-/verify full
+npm test && npx tsc --noEmit
 ```
-
-✅ **Right**: 検証通過 → コミット → フェーズ遷移
-❌ **Wrong**: 検証スキップ → 直接コミット
-
----
-
-## Knowledge Auto-Loading
-
-**Priority**: 🟢 **Triggers**: ファイル操作、キーワード検出
-
-### File Pattern Rules
-
-| Pattern | Load |
-|---------|------|
-| `*.test.*` | domains/testing.md |
-| `auth/*` | decisions/auth-patterns.md, anti-patterns/security-pitfalls.md |
-| `api/*` | decisions/api-design.md, anti-patterns/common-mistakes.md |
-
-### Keyword Rules
-
-| Keywords | Load |
-|----------|------|
-| security, auth, login | auth-patterns.md, security-pitfalls.md |
-| performance, slow, optimize | performance-issues.md |
-| test, testing, coverage | domains/testing.md |
-
-### Always Load
-
-- policies/escalation-rules.md
 
 ---
 
 ## Git Workflow
 
-**Priority**: 🔴 **Triggers**: バージョン管理操作
+**Priority**: CRITICAL **Triggers**: バージョン管理操作
 
 ### Branch Rules
 
@@ -219,45 +117,20 @@ main
 
 - 意味のあるコミットメッセージ
 - 小さな単位でコミット
-- `main` ブランチへの直接コミット禁止
 
 ### Pre-Commit Checklist
 
-1. [ ] `/verify standard` が通過
-2. [ ] 変更内容を確認 (`git diff`)
-3. [ ] 不要なファイルを除外
-4. [ ] 適切なコミットメッセージ
-
-✅ **Right**: feature ブランチで作業 → 検証 → PR
-❌ **Wrong**: main ブランチで直接作業
-
----
-
-## Tool Optimization
-
-**Priority**: 🟢 **Triggers**: 複数ツール操作
-
-### MCP Tool Priority
-
-1. **Lattice MCP Tools** - パターン・判断・ポリシー管理
-2. **Native Tools** - ファイル操作、検索
-3. **Bash** - システム操作（最小限）
-
-### Parallel Execution
-
-- 独立した操作は並列実行
-- 依存関係がある場合のみ順次実行
-
-### Batch Operations
-
-- 複数ファイル編集 → MultiEdit
-- 複数ファイル読み込み → 並列 Read
+1. [ ] 型チェック通過 (`npx tsc --noEmit`)
+2. [ ] テスト通過 (`npm test`)
+3. [ ] 変更内容を確認 (`git diff`)
+4. [ ] 不要なファイルを除外
+5. [ ] 適切なコミットメッセージ
 
 ---
 
 ## Error Handling
 
-**Priority**: 🟡 **Triggers**: エラー発生時
+**Priority**: IMPORTANT **Triggers**: エラー発生時
 
 ### Investigation First
 
@@ -272,11 +145,25 @@ main
 2. 根本原因を特定
 3. 修正を実施
 4. 検証を通過
-5. パターンとして記録（再発防止）
+5. Compound Learning に記録（再発防止）
 ```
 
-✅ **Right**: エラー調査 → 原因特定 → 適切な修正
-❌ **Wrong**: エラーを無視 → とりあえず動くように修正
+---
+
+## Tool Optimization
+
+**Priority**: RECOMMENDED **Triggers**: 複数ツール操作
+
+### Tool Priority
+
+1. **Native Tools** - ファイル操作、検索（Read, Edit, Write, Glob, Grep）
+2. **MCP Tools** - Context7 ドキュメント取得、Web 検索
+3. **Bash** - システム操作（最小限）
+
+### Parallel Execution
+
+- 独立した操作は並列実行
+- 依存関係がある場合のみ順次実行
 
 ---
 
@@ -299,9 +186,9 @@ main
 
 可逆的な変更？
   NO → エスカレーション
-  YES → ログ記録して進行
+  YES → 進行
 ```
 
 ---
 
-_Lattice Rules: フェーズ規律 × エスカレーション判断 × 継続学習_
+_Forge Rules: フェーズ規律 x エスカレーション判断 x 検証ゲート_

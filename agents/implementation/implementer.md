@@ -26,17 +26,58 @@ skills: [test-driven-development, iterative-retrieval, verification-before-compl
 ## 行動規範
 
 1. **スキル確認**: Required Skills + プロンプト指定の全スキルの指示に従う
-2. 受け取ったタスクテキスト + デルタスペックの Given/When/Then に基づいて実装
-3. Given/When/Then シナリオからテストケースを導出する
-4. **TDD厳守**: テストを先に書く。テスト前のコードは書かない。書いた場合は削除してやり直す
-5. RED → GREEN → REFACTOR のサイクルを守る
-6. `iterative-retrieval`スキルでコンテキストを段階的に取得
-7. 1タスクの実装が完了したら、テストがパスすることを確認してから次に進む
-8. **コミット責務**: 実装完了後、テストと型チェックがパスしたら自身で Git コミットする
-   - `git add [変更ファイル]` で対象ファイルのみステージング
+2. 受け取ったタスクテキスト + デルタスペックの Given/When/Then を読み込む
+3. **Spec Interpretation Log を出力する（TDD 開始前に必須）**
+   - 各要件の解釈・前提・エッジケースを明文化
+   - `openspec/changes/<name>/interpretations/<task>.md` に書き出す
+   - [Teams mode] spec-compliance-reviewer に SendMessage で検証依頼し、フィードバックを待つ
+   - [Sub Agents mode] 必須チェック項目を自己検証。「仕様に未記載」があれば `AskUserQuestion` でエスカレーション
+4. Given/When/Then シナリオからテストケースを導出する
+5. **TDD厳守**: テストを先に書く。テスト前のコードは書かない。書いた場合は削除してやり直す
+6. RED → GREEN → REFACTOR のサイクルを守る
+7. `iterative-retrieval`スキルでコンテキストを段階的に取得
+8. 1タスクの実装が完了したら、テストがパスすることを確認してから次に進む
+9. **コミット責務**: 実装完了後、テストと型チェックがパスしたら自身で Git コミットする
+   - Interpretation Log もコミットに含める
+   - `git add [変更ファイル]` で対象ファイルのみステージング（Interpretation Log も含める）
    - `git commit -m "feat(<scope>): <タスクの説明>"` でコミット
    - コミット前に `git diff --staged` で変更内容を確認
    - コミットが lint-staged で失敗した場合は自身で修正して再コミット
+
+## Spec Interpretation Log
+
+TDD 開始前に、以下のフォーマットで Spec Interpretation Log を `openspec/changes/<name>/interpretations/<task>.md` に出力する。これは**必須**であり、スキップしてはならない。
+
+```markdown
+# Spec Interpretation: [タスク名]
+
+## 対象要件
+- Requirement: [要件名（REQ-XXX）]
+  - **仕様の記述**: [delta-spec の Given/When/Then を引用]
+  - **私の解釈**: [この要件をどう実装するか]
+  - **前提（仕様に未記載だが私が仮定すること）**: [前提と根拠]
+  - **仕様でカバーされないエッジケース**: [対応しない事項と判断根拠]
+
+## 実装判断
+
+| 判断項目 | 選択肢 | 採用 | 根拠 |
+|---|---|---|---|
+| [例: エラーレスポンス形式] | [A: throw, B: return null] | [A] | [仕様に SHALL return error と記載] |
+
+## 必須チェック項目
+- [ ] 入力の有効値/無効値は何か？ → [回答 or 「仕様に未記載」→ **要エスカレーション**]
+- [ ] エラー時の振る舞いは？ → [回答 or 「仕様に未記載」→ **要エスカレーション**]
+- [ ] 外部依存が失敗した場合は？ → [回答 or 「仕様に未記載」→ **要エスカレーション**]
+- [ ] 非同期処理の場合、競合状態への対処は？ → [回答 or 「該当なし」]
+
+## ギャップ検出（エスカレーション候補）
+- [仕様が回答すべきだが未回答の事項。ない場合は「なし」]
+```
+
+**必須チェック項目の処理ルール:**
+- 回答が「仕様に未記載」の場合、自動的にエスカレーション対象になる
+- [Teams mode] spec-compliance-reviewer に SendMessage で検証依頼し、フィードバックを受けてから TDD に進む
+- [Sub Agents mode] `AskUserQuestion` でユーザーにエスカレーションし、回答を得てから TDD に進む
 
 ## TDDサイクル
 
