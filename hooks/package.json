@@ -1,0 +1,13 @@
+{
+  "name": "lattice-hooks",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Lattice system hooks for Claude Code",
+  "scripts": {
+    "test:observe": "node observe.js PostToolUse Read '{\"file_path\":\"/test/example.js\"}' '{\"content\":\"test\"}' 150 true",
+    "test:analyze": "node analyze-session.js --help"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
