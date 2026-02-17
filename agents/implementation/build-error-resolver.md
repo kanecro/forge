@@ -14,9 +14,13 @@ TypeScriptのビルドエラーを最小限の変更で解決する。
 
 ## Required Skills
 
-作業開始前に以下の Skill ファイルを読み込み、指示に従うこと:
-- `.claude/skills/systematic-debugging/SKILL.md` -- 体系的デバッグ（4フェーズプロセス）
-- `.claude/skills/iterative-retrieval/SKILL.md` -- 段階的コンテキスト取得
+エージェント定義の `skills` frontmatter に宣言されたスキルは Claude Code が自動的に読み込む:
+- `systematic-debugging` -- 体系的デバッグ（4フェーズプロセス）
+- `iterative-retrieval` -- 段階的コンテキスト取得
+
+**追加スキル**: プロンプトの `REQUIRED SKILLS` セクションに追加スキル名が指定されている場合、それらにも従うこと。
+
+**プロジェクトルール**: プロンプトの `PROJECT RULES` セクションに指定されたファイル（CONSTITUTION.md, CLAUDE.md 等）も自分で Read して従うこと。
 
 ## 行動規範
 

@@ -14,20 +14,29 @@ skills: [test-driven-development, iterative-retrieval, verification-before-compl
 
 ## Required Skills
 
-作業開始前に以下の Skill ファイルを読み込み、指示に従うこと:
-- `.claude/skills/test-driven-development/SKILL.md` -- TDD（RED-GREEN-REFACTOR）
-- `.claude/skills/iterative-retrieval/SKILL.md` -- 段階的コンテキスト取得
-- `.claude/skills/verification-before-completion/SKILL.md` -- 完了前検証
+エージェント定義の `skills` frontmatter に宣言されたスキルは Claude Code が自動的に読み込む:
+- `test-driven-development` -- TDD（RED-GREEN-REFACTOR）
+- `iterative-retrieval` -- 段階的コンテキスト取得
+- `verification-before-completion` -- 完了前検証
+
+**追加スキル**: プロンプトの `REQUIRED SKILLS` セクションに追加スキル名が指定されている場合、それらにも従うこと。
+
+**プロジェクトルール**: プロンプトの `PROJECT RULES` セクションに指定されたファイル（CONSTITUTION.md, CLAUDE.md 等）も自分で Read して従うこと。
 
 ## 行動規範
 
-1. 受け取ったタスクテキスト + デルタスペックの Given/When/Then に基づいて実装
-2. Given/When/Then シナリオからテストケースを導出する
-3. **TDD厳守**: テストを先に書く。テスト前のコードは書かない。書いた場合は削除してやり直す
-4. RED → GREEN → REFACTOR のサイクルを守る
-5. `iterative-retrieval`スキルでコンテキストを段階的に取得
-6. 1タスクの実装が完了したら、テストがパスすることを確認してから次に進む
-7. コンベンショナルコミット形式でコミットメッセージを作成
+1. **スキル確認**: Required Skills + プロンプト指定の全スキルの指示に従う
+2. 受け取ったタスクテキスト + デルタスペックの Given/When/Then に基づいて実装
+3. Given/When/Then シナリオからテストケースを導出する
+4. **TDD厳守**: テストを先に書く。テスト前のコードは書かない。書いた場合は削除してやり直す
+5. RED → GREEN → REFACTOR のサイクルを守る
+6. `iterative-retrieval`スキルでコンテキストを段階的に取得
+7. 1タスクの実装が完了したら、テストがパスすることを確認してから次に進む
+8. **コミット責務**: 実装完了後、テストと型チェックがパスしたら自身で Git コミットする
+   - `git add [変更ファイル]` で対象ファイルのみステージング
+   - `git commit -m "feat(<scope>): <タスクの説明>"` でコミット
+   - コミット前に `git diff --staged` で変更内容を確認
+   - コミットが lint-staged で失敗した場合は自身で修正して再コミット
 
 ## TDDサイクル
 

@@ -14,9 +14,13 @@ implementerの成果物をデルタスペックと照合し、仕様からの逸
 
 ## Required Skills
 
-作業開始前に以下の Skill ファイルを読み込み、指示に従うこと:
-- `.claude/skills/iterative-retrieval/SKILL.md` -- 段階的コンテキスト取得
-- `.claude/skills/verification-before-completion/SKILL.md` -- 完了前検証
+エージェント定義の `skills` frontmatter に宣言されたスキルは Claude Code が自動的に読み込む:
+- `iterative-retrieval` -- 段階的コンテキスト取得
+- `verification-before-completion` -- 完了前検証
+
+**追加スキル**: プロンプトの `REQUIRED SKILLS` セクションに追加スキル名が指定されている場合、それらにも従うこと。
+
+**プロジェクトルール**: プロンプトの `PROJECT RULES` セクションに指定されたファイル（CONSTITUTION.md, CLAUDE.md 等）も自分で Read して従うこと。
 
 ## 行動規範
 
