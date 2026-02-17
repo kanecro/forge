@@ -16,15 +16,15 @@
 ### コマンドパイプライン
 
 ```
-/brainstorm → /spec → /implement → /review → /test → /compound
-     │            │         │           │         │         │
-  proposal.md  delta-spec  TDD実装   7並列    全テスト   学び記録+
-              design.md   RED→GREEN  レビュー  実行証明  スペックマージ
-              tasks.md    →REFACTOR
+/brainstorm → /spec → [spec-validate] → [ユーザー承認] → /implement(interpret-first) → /review(spec-aware) → /test → /compound(learning-router)
+     │            │         │                                    │                           │                    │         │
+  proposal.md  delta-spec  敵対的検証                     Interpretation Log +          仕様コンテキスト注入   全テスト   学び分類+
+              design.md   + 修正ループ                    TDD実装 RED→GREEN             動的レビュアー選択    実行証明  ルーティング+
+              tasks.md                                    →REFACTOR                     カバレッジマトリクス             スペックマージ
 ```
 
 - `/ship` は上記を連鎖実行する完全自律パイプライン
-- `/brainstorm` と `/spec` の後はユーザー承認必須
+- `/brainstorm` と `/spec`（spec-validate 含む）の後はユーザー承認必須
 - `/implement` 以降は自律実行（テスト失敗時は最大3回リトライ）
 
 ### OpenSpec 構造
@@ -38,7 +38,9 @@ openspec/
     │   ├── proposal.md     # /brainstorm で生成
     │   ├── design.md       # /spec で生成
     │   ├── tasks.md        # /spec で生成
-    │   └── specs/          # デルタスペック（/spec で生成）
+    │   ├── specs/          # デルタスペック（/spec で生成）
+    │   └── interpretations/ # 仕様解釈ログ（/implement で生成）
+    │       └── <task>.md   # 各タスクの Spec Interpretation Log
     └── archive/            # /compound で完了分をアーカイブ
 ```
 
@@ -80,9 +82,10 @@ openspec/
 
 ### スペックエージェント（`agents/spec/`）
 
-| Agent       | Purpose                                                                                      |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| spec-writer | リサーチ結果を統合し design.md / tasks.md / delta-spec を生成。/spec のリサーチ＆スペックチーム内で使用 |
+| Agent          | Purpose                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| spec-writer    | リサーチ結果を統合し design.md / tasks.md / delta-spec を生成。/spec のリサーチ＆スペックチーム内で使用 |
+| spec-validator | 敵対的仕様検証。エラーパス・境界値・非機能要件の網羅性チェック（model: opus）                 |
 
 ### オーケストレーションエージェント（`agents/orchestration/`）
 
@@ -92,11 +95,11 @@ openspec/
 
 ### 実装エージェント（`agents/implementation/`）
 
-| Agent                    | Purpose                                         |
-| ------------------------ | ----------------------------------------------- |
-| implementer              | タスク単位のTDD駆動実装（RED→GREEN→REFACTOR）   |
-| spec-compliance-reviewer | デルタスペックとの照合・逸脱検出（model: opus） |
-| build-error-resolver     | TypeScriptビルドエラーの最小差分修正            |
+| Agent                    | Purpose                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| implementer              | Interpretation-First + TDD駆動実装（Spec Interpretation Log出力 → RED→GREEN→REFACTOR）       |
+| spec-compliance-reviewer | 事前検証（Interpretation Log照合）+ 事後検証（実装結果照合）の2段階チェック（model: opus）    |
+| build-error-resolver     | TypeScriptビルドエラーの最小差分修正                                                         |
 
 ### レビューエージェント（`agents/review/`）-- 全て model: opus
 
@@ -109,6 +112,7 @@ openspec/
 | terraform-reviewer      | IaCベストプラクティス、GCPリソース設定、ステート管理              |
 | type-safety-reviewer    | strict mode準拠、any排除、Zodスキーマ検証                         |
 | api-contract-reviewer   | Route Handlers/Server Actions入出力型整合性、エラーレスポンス統一 |
+| review-aggregator       | レビュー結果統合・重複排除・矛盾解決・カバレッジマトリクス生成   |
 
 ---
 
@@ -288,9 +292,10 @@ implement-orchestrator（メインスレッドとして起動）
 - エージェント定義の `skills` frontmatter + プロンプト指定のスキルに従う（Claude Code が自動読み込み）
 - デルタスペック・design.md を自分で Read
 - コードベースを iterative-retrieval で探索
+- **Spec Interpretation Log を出力**（TDD 開始前に必須。`openspec/changes/<name>/interpretations/<task>.md` に書き出し）
 - TDD 実装（RED → GREEN → REFACTOR）
 - テスト実行・型チェック
-- Git コミット
+- Git コミット（Interpretation Log を含む）
 
 ---
 
@@ -324,13 +329,31 @@ implement-orchestrator（メインスレッドとして起動）
 
 ---
 
-## Compound Learning（100ドルルール）
+## Compound Learning（Learning Router）
 
-防げたはずの失敗が起きたら:
+学びを記録し、種別に応じて適切なアーティファクトへの更新を自動ルーティングする。
 
-1. `docs/compound/YYYY-MM-DD-<topic>.md` に学びを記録
-2. コストが100ドル超（推定）なら、`rules/`・`reference/`・`skills/`・`hooks/` の更新を提案
-3. ユーザー承認後に適用
+### 閾値ルール（3段階）
+
+| 閾値 | アクション |
+|---|---|
+| **重大**（100ドル超相当） | ルール / スキル / フック / エージェント定義 / コマンド / 仕様テンプレートの更新を強く提案 |
+| **中程度**（繰り返し発生） | 同一種別の学びが2回以上蓄積した場合、更新を提案 |
+| **軽微**（初回発生） | `docs/compound/` に記録のみ。次回発生時に中程度に昇格 |
+
+### Learning Router 分類テーブル
+
+| 学びの種別 | 更新対象アーティファクト |
+|---|---|
+| コーディングパターン | `rules/` or `reference/` |
+| 仕様作成時の見落とし | spec-writer テンプレート / spec-validator チェックリスト |
+| 実装時の解釈誤り | implementer の必須チェック項目 |
+| レビュー見落とし | レビュアーのチェックリスト |
+| ワークフロー改善 | コマンド定義 (`commands/`) |
+| ビルドエラー | build-error-resolver / フック |
+| エスカレーション判断の誤り | エスカレーション条件 |
+
+詳細は `/compound` コマンド定義を参照。
 
 ---
 
