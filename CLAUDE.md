@@ -7,6 +7,7 @@
 3. **Minimal Change**: 依頼された変更のみ実施。過剰な改善・リファクタ・コメント追加をしない
 4. **Action-Aware**: 現在のフェーズに合った作業を行う（実装中に仕様変更しない等）
 5. **Skill-First**: 作業開始前に `forge-skill-orchestrator` で適用スキルを判定し、呼び出す
+6. **Context Isolation**: Main Agent はオーケストレーション専任。コード実装・スキル内容の読み込みは全て Sub Agent / Agent Team に委譲し、自身のコンテキストウィンドウを保護する
 
 ---
 
@@ -43,28 +44,24 @@ openspec/
 
 ---
 
-## Modular Rules
+## Rules
 
-詳細なガイドラインは `~/.claude/rules/` を参照:
+常時読み込み: `~/.claude/rules/core-essentials.md`（エスカレーション・セキュリティ・Git形式）
 
-### 共通ルール（`rules/common/`）
+詳細ルールは `~/.claude/reference/` にオンデマンド配置。作業対象に応じて必要なファイルを読み込む:
 
-| Rule File       | Contents                                                                                                                                                            |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| coding-style.md | ファイルサイズ制限（200-400行推奨/800行上限）、命名規約（PascalCase/camelCase/UPPER_SNAKE_CASE）、インポート順序、TODO形式、コメント規約                            |
-| git-workflow.md | Conventional Commits形式（`<type>(<scope>): <説明>`）、ブランチ戦略（main/develop/feature/fix/chore）、コミット粒度、PR規約                                         |
-| testing.md      | TDDワークフロー（RED→GREEN→REFACTOR）、Vitest/Playwright/Testing Library使い分け、AAA(Arrange/Act/Assert)パターン、カバレッジ目標80%+、テストファイル配置規約       |
-| security.md     | シークレット管理（.env.local/Secret Manager）、Zodバリデーション必須、XSS/CSRF対策、Prismaパラメータ化クエリ、`dangerouslySetInnerHTML`禁止、`npm audit`ゼロ脆弱性 |
-| performance.md  | Server Components優先、`next/image`必須、動的インポート、N+1防止（select+明示的リレーション）、キャッシュ戦略（revalidate/unstable_cache）、Web Vitals目標値        |
-| escalation.md   | エスカレーション3段階（必須/状況依存/自律判断OK）、フェーズ別トリガー条件、エスカレーション形式テンプレート                                                         |
-
-### 技術スタック固有ルール
-
-| Rule File                | Contents                                                                                                                                                                               |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| nextjs/conventions.md    | App Routerファイル構成（page/layout/loading/error/not-found/route）、Server/Client Components使い分け、Route Handlers/Server Actions設計、API統一レスポンス形式、generateMetadata設定  |
-| prisma/conventions.md    | スキーマ命名規約（PascalCase/camelCase/@@map）、マイグレーション安全戦略（段階的破壊変更）、クエリ最適化（select/take必須）、インデックス設計、トランザクション境界                    |
-| terraform/conventions.md | ファイル構成（main/variables/outputs/providers/backend）、モジュール化（GCPサービス単位）、リモートステート（GCS+ロック）、IAM最小権限、Cloud KMS暗号化、plan→review→applyワークフロー |
+| Reference File | 読み込むタイミング |
+|---|---|
+| `reference/typescript-rules.md` | TypeScript実装・型設計時 |
+| `reference/coding-standards.md` | コーディング規約の確認時 |
+| `reference/core-rules.md` | フェーズ管理・検証ゲート確認時 |
+| `reference/workflow-rules.md` | セッション管理・チェックポイント時 |
+| `reference/common/coding-style.md` | ファイルサイズ・命名規約確認時 |
+| `reference/common/testing.md` | テスト作成・TDD実践時 |
+| `reference/common/performance.md` | パフォーマンス最適化時 |
+| `reference/nextjs/conventions.md` | Next.js App Router作業時 |
+| `reference/prisma/conventions.md` | Prismaスキーマ・クエリ作業時 |
+| `reference/terraform/conventions.md` | Terraform IaC作業時 |
 
 ---
 
@@ -80,6 +77,18 @@ openspec/
 | web-researcher                | Web Search MCPで最新記事・落とし穴・参考実装を調査           |
 | codebase-analyzer             | 既存コードのパターン・影響範囲・OpenSpecスペックを分析       |
 | compound-learnings-researcher | `docs/compound/` から過去の学び・教訓を抽出                  |
+
+### スペックエージェント（`agents/spec/`）
+
+| Agent       | Purpose                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| spec-writer | リサーチ結果を統合し design.md / tasks.md / delta-spec を生成。/spec のリサーチ＆スペックチーム内で使用 |
+
+### オーケストレーションエージェント（`agents/orchestration/`）
+
+| Agent                    | Purpose                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| implement-orchestrator   | 実装オーケストレーション専任（Write/Edit禁止）。`claude --agent` でメインスレッドとして起動する場合にのみ使用。`/implement` コマンドからは使用しない |
 
 ### 実装エージェント（`agents/implementation/`）
 
@@ -103,9 +112,24 @@ openspec/
 
 ---
 
+## Skill Discovery
+
+スキルは以下の2箇所から自動検出され、Claude Code がセッション開始時に利用可能スキルとして認識する:
+
+| 優先度 | 配置場所 | 説明 |
+|---|---|---|
+| 1（高） | `<project-root>/.claude/skills/` | プロジェクト固有スキル |
+| 2（低） | `~/.claude/skills/` | グローバルスキル |
+
+- 同名スキルが両方に存在する場合、プロジェクト側が優先（Override）
+- スキルは**名前**で参照する（パスの指定は不要。Claude Code が自動解決する）
+- プロジェクト固有スキルは `<project-root>/.claude/skills/<name>/SKILL.md` に配置するだけで自動検出される
+
+---
+
 ## Available Skills
 
-スキル定義は `~/.claude/skills/` を参照:
+グローバルスキル定義は `~/.claude/skills/` を参照。プロジェクト固有スキルは各プロジェクトの `.claude/skills/` を参照:
 
 | Skill                          | Purpose                                                     |
 | ------------------------------ | ----------------------------------------------------------- |
@@ -115,6 +139,8 @@ openspec/
 | verification-before-completion | 完了の証明（実行結果貼付必須、「通るはず」禁止）            |
 | iterative-retrieval            | 段階的コンテキスト取得（Glob→Grep→Read）                    |
 | strategic-compact              | コンテキストウィンドウ管理（80%超過時の手動コンパクション） |
+
+> プロジェクトの `.claude/skills/` に配置されたスキルも Claude Code が自動検出し、上記と同様に利用可能になる。
 
 ---
 
@@ -144,37 +170,133 @@ openspec/
 
 ### サブエージェントへのスキル注入
 
-サブエージェントは Skill ツールを使えない。親コマンドが:
+サブエージェントには**スキル名**を渡す。Claude Code がスキル名から自動的に解決・読み込みを行う。
 
-1. エージェント定義の `skills` frontmatter を確認
-2. 該当 SKILL.md を読み込み
-3. タスクプロンプトにインラインで含める
+1. タスクのドメインに応じて適用スキルの**名前一覧**を決定する
+2. Sub Agent のプロンプトにスキル名を記載する
+3. Claude Code が自動的にスキルを解決・注入する
+
+**禁止**: Main Agent が SKILL.md の内容を Read してプロンプトにインライン展開すること
+
+#### スキル名決定テーブル
+
+| ドメイン判定 | 適用スキル名 |
+|---|---|
+| `.ts` / `.tsx` 全般 | `test-driven-development`, `verification-before-completion`, `iterative-retrieval` |
+| Next.js（`src/app/`） | 上記 + `next-best-practices` |
+| Prisma（`prisma/`, `server/`） | 上記 + `prisma-expert` |
+| デバッグ / エラー修正 | `systematic-debugging`, `iterative-retrieval` |
+| フロントエンド UI | 上記 + `frontend-design` |
+
+---
+
+## Context Isolation Policy
+
+Main Agent のコンテキストウィンドウを保護し、大規模実装でも破綻しないようにする2層分離ルール。
+
+### 2層アーキテクチャ + 動的モード選択
+
+```
+Main Agent（オーケストレーション層 / チームリーダー）
+  │ tasks.md + design.md の内容を読み込み
+  │ タスク分析・依存関係構築
+  │ 引数（--teams/--agents）でモード決定
+  │
+  ├─ [Teams モード] TeamCreate → チーム
+  │   Main Agent = リーダー（Delegate モード推奨）
+  │   teammate 間で SendMessage による直接通信
+  │   完了後: TeamDelete でクリーンアップ
+  │
+  └─ [Sub Agents モード] Task(subagent) × N
+      並列可能なタスクは同時に Task 起動
+      結果のみ Main Agent に返される
+```
+
+> **設計背景**: Claude Code の制約により、サブエージェントは他のサブエージェントを起動できない（ネスト不可）。
+> そのため Main Agent が直接 implementer を起動する2層構造を採用する。
+> Teams モードではエージェント間通信により成果物の質が向上する場面で使用する。
+
+### Teams vs Task 切り替え基準
+
+| 条件 | 方式 | 理由 |
+|---|---|---|
+| エージェント間の情報共有・フィードバックが成果を改善する | Teams | SendMessage による協調で質が上がる |
+| 各エージェントが独立して作業でき、やりとりが不要 | Task 並列 | Teams のオーバーヘッドなしに並列実行できる |
+| 単発の委譲タスク | Task | 協調の必要なし |
+
+**具体的な適用:**
+- `/implement`: 独立タスクが2+で異なるファイルセットの場合に Teams を推奨。`--teams`/`--agents` 引数で指定（デフォルト: `agents`）
+- `/spec`: リサーチャー間の相互参照 + spec-writer によるチーム内統合に Teams を推奨。`--teams`/`--agents` 引数で指定（デフォルト: `agents`）
+- `/review`: 各レビューは独立作業のため Task 並列（Teams 不使用）
+
+### Main Agent の責務（/implement 実行時）
+
+- 仕様書・設計書・タスクリスト（`.md` ファイル）の読み込み
+- タスク分析・依存関係に基づくバッチ構成
+- モード選択（`--teams`/`--agents` 引数に基づく分岐）
+- Teams モード: TeamCreate でチーム作成・タスク割り当て・監視・TeamDelete
+- Sub Agents モード: `Task(implementer)` を直接起動（並列 or 順次）
+- 検証コマンド実行（`npm test`, `tsc --noEmit`, `git diff --stat`）
+- 検証失敗時: `Task(build-error-resolver)` に委譲（最大3回リトライ）
+- スペック準拠確認: `Task(spec-compliance-reviewer)` に委譲
+- `git log --oneline` で結果確認・ユーザーに報告
+
+### Main Agent が行わないこと（厳守）
+
+| 禁止操作 | 理由 | 代替手段 |
+|---|---|---|
+| Write / Edit で実装ファイルを編集 | コンテキスト汚染 | Task(implementer) / teammate に委譲 |
+| 実装ファイル（`.ts`, `.tsx`）の Read | コンテキスト膨張 | Explore Agent / implementer に委譲 |
+| SKILL.md の Read | コンテキスト汚染 | スキル名のみ決定、Claude Code が自動解決 |
+| `git diff`（ファイル内容表示） | 大量 diff でコンテキスト圧迫 | `git diff --stat` のみ許可 |
+
+### エスカレーションフロー（Teams 内 → ユーザー）
+
+Teams モードで Team Member がユーザー確認を必要とする場合:
+
+```
+Team Member（疑問発見）
+  | SendMessage（選択肢を含めて送信）
+  v
+Main Agent（チームリーダー）
+  | AskUserQuestion（選択肢をそのまま提示）
+  v
+ユーザー（回答）
+  |
+  v
+Main Agent
+  | SendMessage（回答をそのまま返信）
+  v
+Team Member（作業再開）
+```
+
+### implement-orchestrator（メインスレッド専用）
+
+`claude --agent implement-orchestrator` で起動した場合のみ有効。**`/implement` コマンドからは使用しない。**
+
+```
+implement-orchestrator（メインスレッドとして起動）
+  ├→ Task(implementer) × N
+  ├→ Task(build-error-resolver)
+  └→ Task(spec-compliance-reviewer)
+```
+
+**注意**: `Task(implement-orchestrator)` でサブエージェントとして起動した場合、Task ツールは利用できない（Claude Code の制約）。このため `/implement` コマンドでは使用しない。
+
+### implementer の責務
+
+- エージェント定義の `skills` frontmatter + プロンプト指定のスキルに従う（Claude Code が自動読み込み）
+- デルタスペック・design.md を自分で Read
+- コードベースを iterative-retrieval で探索
+- TDD 実装（RED → GREEN → REFACTOR）
+- テスト実行・型チェック
+- Git コミット
 
 ---
 
 ## Escalation Rules
 
-詳細は `~/.claude/rules/common/escalation.md` を参照。
-
-### 判断フロー
-
-1. CLAUDE.md / `rules/` のルールで解決できるか？ → Yes: 自律判断
-2. 影響範囲は自モジュール内か？ → Yes: 自律判断
-3. 上記すべて No → ユーザーに確認（`AskUserQuestion`）
-
-### 常にエスカレーション（必須）
-
-- **セキュリティ**: 認証・認可・暗号化・PII処理の設計判断
-- **データ**: スキーマ変更・マイグレーション・データ整合性に影響する判断
-- **アーキテクチャ**: 新サービス追加・破壊的API変更・レイヤー構造変更
-- **本番環境**: デプロイ・設定変更・ロールバック
-
-### 自律判断OK
-
-- コードフォーマット、lint修正、ローカル変数リネーム
-- 明らかなバグ修正（null例外、off-by-one）
-- 自モジュール内のリファクタリング
-- P3レビュー指摘の修正
+`~/.claude/rules/core-essentials.md` に統合済み。エスカレーションポリシー（必須/状況依存/自律判断OK）を参照。
 
 ---
 
@@ -207,7 +329,7 @@ openspec/
 防げたはずの失敗が起きたら:
 
 1. `docs/compound/YYYY-MM-DD-<topic>.md` に学びを記録
-2. コストが100ドル超（推定）なら、`rules/`・`skills/`・`hooks/` の更新を提案
+2. コストが100ドル超（推定）なら、`rules/`・`reference/`・`skills/`・`hooks/` の更新を提案
 3. ユーザー承認後に適用
 
 ---
