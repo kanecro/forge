@@ -72,8 +72,9 @@ SendMessage → [該当リサーチャー名]
 
 出力形式（後述）に従って3ファイルを生成する。生成後、以下を検証する:
 
-- delta-spec.md の全 Requirement に Given/When/Then シナリオがあること
-- tasks.md の各タスクに対象ファイル・検証方法・関連スペックリンクがあること
+- delta-spec.md の全 ADDED/MODIFIED Requirement に REQ-XXX ID が付与されていること
+- delta-spec.md の全 Requirement に Happy Path Scenarios と Error Scenarios が定義されていること
+- tasks.md の各タスクに対象ファイル・検証方法・関連要件 ID・関連スペックリンクがあること
 - design.md のリサーチサマリーが全リサーチャーの結果を反映していること
 
 ### Step 5: Main Agent にサマリーを送信
@@ -149,6 +150,33 @@ proposal.md の記述が複数の解釈を許す場合、または要件間で�
 codebase-analyzer の分析で想定以上の影響範囲が判明した場合:
 - SendMessage で Main Agent に影響範囲の詳細と対応案を送信
 
+## 仕様記述のアプローチ: EARS + Given/When/Then
+
+要件記述には EARS（Easy Approach to Requirements Syntax）と Given/When/Then を併用する:
+
+- **EARS**: 要件の種別（ユビキタス / イベント駆動 / 条件付き / オプション / 非想定）を明確にし、曖昧性を排除する
+- **Given/When/Then**: 各要件をテスト可能なシナリオとして具体化する
+
+### EARS 4品質基準
+
+各要件が以下を満たすことを確認してから出力する:
+
+| 基準 | 確認内容 |
+|---|---|
+| **テスト可能性** | 各シナリオの THEN が具体的で、テストコードに変換可能か |
+| **振る舞い中心** | 実装手段ではなく、期待される振る舞いが記述されているか |
+| **一意解釈性** | 要件が一つの解釈のみを許すか。「適切に」「必要に応じて」等の曖昧語がないか |
+| **十分な完全性** | 要件の実装に必要な情報が全て含まれているか |
+
+## 要件 ID（REQ-XXX）ルール
+
+各要件に一意の要件 ID を付与する:
+
+- 形式: `REQ-XXX`（XXX は変更単位内の連番、001から開始）
+- ADDED / MODIFIED の全要件に付与する（REMOVED は任意）
+- tasks.md の各タスクの「関連スペック」に要件 ID を含める
+- 要件 ID は変更単位（change-name）内で一意であればよい
+
 ## 出力形式
 
 ### デルタスペック（`specs/<feature>/delta-spec.md`）
@@ -158,28 +186,54 @@ codebase-analyzer の分析で想定以上の影響範囲が判明した場合:
 
 ## ADDED Requirements
 
-### Requirement: [要件名]
+### Requirement: REQ-001 [要件名]
 [RFC 2119: SHALL, SHOULD, MAY]
 
-#### Scenario: [シナリオ名]
-- **GIVEN** [前提条件]
-- **WHEN** [アクション]
-- **THEN** [期待結果]
+#### Happy Path Scenarios
+- **GIVEN** [前提条件] **WHEN** [アクション] **THEN** [期待結果]
+
+#### Error Scenarios（必須）
+- **GIVEN** [正常な前提] **WHEN** [異常入力/操作] **THEN** [エラー処理の期待結果]
+- **GIVEN** [外部依存の障害] **WHEN** [操作] **THEN** [フォールバックの期待結果]
+
+#### Boundary Scenarios（該当する場合）
+- **GIVEN** [境界値条件] **WHEN** [操作] **THEN** [期待結果]
+
+#### Non-Functional Requirements（該当する場合）
+- **PERFORMANCE**: [応答時間/スループット要件]
+- **ACCESSIBILITY**: [アクセシビリティ要件]
+- **ERROR_UX**: [ユーザーへのエラー表示要件]
 
 ## MODIFIED Requirements
 
-### Requirement: [要件名]
+### Requirement: REQ-XXX [要件名]
 [変更後の記述]
 **変更理由**: [理由]
 
-#### Scenario: [シナリオ]
+#### Happy Path Scenarios
 - **GIVEN** / **WHEN** / **THEN**
+
+#### Error Scenarios（必須）
+- **GIVEN** / **WHEN** / **THEN**
+
+#### Boundary Scenarios（該当する場合）
+- **GIVEN** / **WHEN** / **THEN**
+
+#### Non-Functional Requirements（該当する場合）
+- ...
 
 ## REMOVED Requirements
 
 ### Requirement: [要件名]
 **削除理由**: [理由]
 ```
+
+### シナリオ種別ルール
+
+- **Happy Path Scenarios**: 正常系。全要件で必須
+- **Error Scenarios**: 異常系。全要件で**必須**。異常入力、外部依存障害、権限不足等のケースを最低1つ含める
+- **Boundary Scenarios**: 数値入力、文字列長、リスト件数など境界値が存在する場合に記述
+- **Non-Functional Requirements**: UI変更時のアクセシビリティ、API変更時のパフォーマンス等、該当する場合に記述
 
 ### 設計ドキュメント（`design.md`）
 
@@ -229,6 +283,7 @@ codebase-analyzer の分析で想定以上の影響範囲が判明した場合:
 - **対象ファイル**: `src/app/xxx/page.tsx`（新規 or 既存）
 - **やること**: [具体的な変更内容]
 - **検証方法**: [テストコマンド]
+- **関連要件**: REQ-001, REQ-003
 - **関連スペック**: `specs/<feature>/delta-spec.md#[要件名]`
 - **依存**: [依存タスク番号。なければ「なし」]
 ```

@@ -162,8 +162,13 @@ SPEC FILES（自分で Read して実装すること）:
 - openspec/changes/<CHANGE_NAME>/specs/[該当スペックファイル]
 - openspec/changes/<CHANGE_NAME>/design.md
 
+INTERPRETATION REQUIREMENT:
+TDD 開始前に Spec Interpretation Log を openspec/changes/<CHANGE_NAME>/interpretations/<task>.md に出力すること。
+必須チェック項目に「仕様に未記載」がある場合は AskUserQuestion でエスカレーションすること。
+
 COMPLETION CRITERIA:
+- Spec Interpretation Log が出力済みであること
 - テストがパスすること
 - 型チェックがパスすること
-- コミット済みであること
+- コミット済みであること（Interpretation Log を含む）
 ```
