@@ -134,7 +134,8 @@ COMPLETION CRITERIA:
 全タスク完了後:
 1. `npx vitest run` + `npx tsc --noEmit` で最終検証
 2. `git diff --stat` で変更ファイル一覧を取得
-3. 以下の形式で結果を Main Agent に返す:
+3. プロジェクト/グローバル同期確認: 変更ファイルに `~/.claude/` 配下のファイルが含まれる場合、リポジトリ内に対応ファイル（`agents/`, `commands/`, `reference/` 等）が存在するか確認し、不一致があればコピーによる同期を実施する
+4. 以下の形式で結果を Main Agent に返す:
 
 ```
 # 実装完了サマリー
