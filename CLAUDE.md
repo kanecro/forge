@@ -39,8 +39,10 @@ openspec/
     │   ├── design.md       # /spec で生成
     │   ├── tasks.md        # /spec で生成
     │   ├── specs/          # デルタスペック（/spec で生成）
-    │   └── interpretations/ # 仕様解釈ログ（/implement で生成）
-    │       └── <task>.md   # 各タスクの Spec Interpretation Log
+    │   ├── interpretations/ # 仕様解釈ログ（/implement で生成）コミット対象外、/compound 後に削除
+    │   │   └── <task>.md   # 各タスクの Spec Interpretation Log
+    │   └── reviews/         # レビュー結果（/review で生成）コミット対象外、/compound 後に削除
+    │       └── review-summary.md
     └── archive/            # /compound で完了分をアーカイブ
 ```
 
@@ -243,7 +245,7 @@ Main Agent（オーケストレーション層 / チームリーダー）
 - 検証コマンド実行（`npm test`, `tsc --noEmit`, `git diff --stat`）
 - 検証失敗時: `Task(build-error-resolver)` に委譲（最大3回リトライ）
 - スペック準拠確認: `Task(spec-compliance-reviewer)` に委譲
-- `git log --oneline` で結果確認・ユーザーに報告
+- `git diff --stat` で変更概要確認・ユーザーに報告
 
 ### Main Agent が行わないこと（厳守）
 
@@ -295,7 +297,7 @@ implement-orchestrator（メインスレッドとして起動）
 - **Spec Interpretation Log を出力**（TDD 開始前に必須。`openspec/changes/<name>/interpretations/<task>.md` に書き出し）
 - TDD 実装（RED → GREEN → REFACTOR）
 - テスト実行・型チェック
-- Git コミット（Interpretation Log を含む）
+- Spec Interpretation Log の Phase B（変更ファイル一覧 + 振り返り）を追記
 
 ---
 
