@@ -3,7 +3,7 @@ name: performance-oracle
 description: "N+1クエリ、バンドルサイズ、再レンダリング、キャッシュ戦略をチェックするパフォーマンスレビュアー"
 model: opus
 tools: [Read, Grep, Glob]
-skills: [iterative-retrieval]
+skills: [iterative-retrieval, next-best-practices, prisma-expert]
 ---
 
 # Performance Oracle
@@ -62,3 +62,7 @@ skills: [iterative-retrieval]
 - **影響**: [パフォーマンスへの影響]
 - **修正案**: [具体的な修正方法]
 ```
+
+## SSOT ルール
+
+ドメイン Skill の内容と本 Agent 定義が矛盾する場合、ドメイン Skill の記述を優先すること。
