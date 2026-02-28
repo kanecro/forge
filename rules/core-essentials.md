@@ -46,6 +46,19 @@
 
 作業開始前に `forge-skill-orchestrator` でフェーズ判定 → ドメイン判定 → スキル特定を行う。サブエージェントにはスキル**名**を渡す（Claude Code が自動解決）。Main Agent が SKILL.md を Read してインライン展開することは禁止。
 
+### Phase-Aware ファイルサフィックス
+
+ドメイン Skill はフェーズに応じて参照するファイルが異なる:
+
+| フェーズ | サフィックス | 例 |
+|---|---|---|
+| `/brainstorm` | `/constraints` | `prisma-expert/constraints` |
+| `/spec` | `/design` | `prisma-expert/design` |
+| `/implement`, `/review` | なし（現行通り） | `prisma-expert` |
+
+- 方法論 Skill にはサフィックスを付けない（対象外）
+- サフィックス付きファイルが存在しない場合は SKILL.md にフォールバック
+
 ---
 
 ## Context Isolation Policy
