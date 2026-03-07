@@ -29,6 +29,10 @@ $ARGUMENTS を解析し、以下を決定する:
 
 mode に基づいて Phase 1a または Phase 1b に進む。
 
+### Phase Gate: エントリー基準確認
+
+brainstorm → spec のエントリー基準を確認する（`reference/core-rules.md` Phase Gates 参照）。spec-validator の Step 0 でも自動検証されるが、ここで事前に目視確認する。
+
 ### Phase 1a: リサーチ＆スペックチーム（Teams モード）
 
 TeamCreate でリサーチ＆スペックチームを作成し、以下の5 teammate を起動する:
@@ -171,6 +175,8 @@ Phase 3 の検証結果に基づき、仕様の修正を行う。
 2. Spec Validation Report のカバレッジサマリー
 3. 修正ループで解消された項目の概要
 4. 残存する注意事項（もしあれば）
+
+5. Phase Gate: spec → implement のエグジット基準を満たしていることを確認する（`reference/core-rules.md` Phase Gates 参照）
 
 「この仕様で実装を開始してよいですか?」と確認する。
 
