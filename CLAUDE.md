@@ -21,6 +21,7 @@
 - `/ship` は上記を連鎖実行する完全自律パイプライン
 - `/brainstorm` と `/spec`（spec-validate 含む）の後はユーザー承認必須
 - `/implement` 以降は自律実行（テスト失敗時は最大3回リトライ）
+- `/test` は L1（Unit）→ L2（Integration）→ L3（Acceptance）の多層構造で実行。テーラリングルールにより L2/L3 はプロジェクトのテスト資産に応じてスキップ可能
 
 ### OpenSpec 構造
 
