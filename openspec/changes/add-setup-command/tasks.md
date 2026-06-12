@@ -18,14 +18,11 @@
 - **関連スペック**: `specs/setup-command/delta-spec.md#skill-creator の Forge リポへの同梱`
 - **依存**: なし
 
-### Task 2: skills-lock.json に skill-creator エントリを追加（推定: 2分）
+### Task 2: skills-lock.json に skill-creator エントリを追加（廃止）
 
-- **対象ファイル**: `skills-lock.json`（既存）
-- **やること**: skills-lock.json に `"skill-creator": { "source": "anthropics/skills", "sourceType": "github", "computedHash": "..." }` エントリを追加する。computedHash は SKILL.md の SHA-256 ハッシュから算出する
-- **検証方法**: `cat skills-lock.json | grep skill-creator` で エントリが存在することを確認する。`python3 -c "import json; d=json.load(open('skills-lock.json')); print(d['skills']['skill-creator'])"` で正しい形式を確認する
+- **廃止理由**: ソース追跡は `gh skill install` が SKILL.md frontmatter に自動注入するメタデータ（ソースリポジトリ・tree SHA）で行う方式に置換されたため、skills-lock.json への記録は不要。skills-lock.json はリポジトリから削除済み
 - **関連要件**: REQ-009
-- **関連スペック**: `specs/setup-command/delta-spec.md#skill-creator の Forge リポへの同梱`
-- **依存**: Task 1
+- **依存**: なし
 
 ### Task 3: commands/setup.md の frontmatter とヘッダーを作成（推定: 2分）
 
@@ -57,8 +54,8 @@
 ### Task 6: commands/setup.md にステップ3（スキル検索）を記述（推定: 5分）
 
 - **対象ファイル**: `commands/setup.md`（既存 - Task 3で作成）
-- **やること**: ワークフローのステップ3としてスキル検索ロジックを記述する。skills.sh（`npx skills find`）と GitHub API（`gh api`）の並行検索、結果のマージ（同名スキルは重複排除せず両方表示、各スキルにソース明記）、ソース別グループ表示（skills.sh グループを上位に install 数降順、GitHub グループを下位に star 数降順）を含む。各検索ソース（skills.sh, awesome-claude-skills, everything-claude-code, GitHub トピック検索）のパース方法を個別に記述する。フォールバック戦略（片方障害時の graceful degradation、npx 未インストール時の warn + GitHub のみ続行、gh 未認証時の未認証レート制限動作 + 案内表示）を含む。検索結果0件時の REQ-005 遷移、50件超時の上位10件表示を含む
-- **検証方法**: `grep -c "skills find\|gh api\|awesome-claude-skills\|everything-claude-code\|install 数\|star 数\|グループ\|npx.*利用できません\|上位10件" commands/setup.md` で検索ソース、ソート基準、グループ表示、フォールバック、件数制限の記述を確認する
+- **やること**: ワークフローのステップ3としてスキル検索ロジックを記述する。GitHub CLI の `gh skill search` を単一ソースとして使用し、`gh skill search "{query}" --limit 15 --json skillName,repo,description,stars` の実行方法とパース方法を記述する。結果表示は star 数降順でソートし、各スキルに skillName・repo・description・stars を明記する。`gh skill` が preview 機能である旨の注記を含む。フォールバック戦略（gh 未インストール時のインストール手順案内 + 手動入力遷移、gh 未認証時の `gh auth login` 案内、古い gh で `gh skill` サブコマンドが存在しない場合のアップグレード案内、検索 API エラー時のリトライまたは手動入力確認）を含む。検索結果0件時の REQ-005 遷移、`--limit 15` の件数制限と `--page` 案内を含む
+- **検証方法**: `grep -c "gh skill search\|star 数\|preview\|未インストール\|未認証\|アップグレード\|--limit\|--page" commands/setup.md` で検索ソース、ソート基準、preview 注記、フォールバック、件数制限の記述を確認する
 - **関連要件**: REQ-002（Happy Path 全件、Error Scenarios 全件、Boundary Scenarios 全件）
 - **関連スペック**: `specs/setup-command/delta-spec.md#スキル検索`
 - **依存**: Task 5
@@ -66,8 +63,8 @@
 ### Task 7: commands/setup.md にステップ4（対話的選択・インストール）を記述（推定: 5分）
 
 - **対象ファイル**: `commands/setup.md`（既存 - Task 3で作成）
-- **やること**: ワークフローのステップ4として対話的スキル選択・インストールフローを記述する。ランキング表示形式、インストール先選択（プロジェクト/グローバル、デフォルト: プロジェクト）、インストール方法（npx skills add / gh api + コピー）の分岐を含む。検索ソースごとの SKILL.md 取得パス（awesome-claude-skills: `{skill-name}/SKILL.md`、everything-claude-code: `skills/{skill-name}/SKILL.md`、個別リポジトリ: ルート直下 `SKILL.md` or `.claude/skills/{name}/SKILL.md`）を明記する。skills-lock.json へのエントリ追記を含む。不正な選択番号入力時の再入力促し、ネットワーク接続なし時の案内、同名スキル上書き確認、skills-lock.json 書き込み失敗時の警告（インストールはロールバックしない）を含む
-- **検証方法**: `grep -c "プロジェクト\|グローバル\|npx skills add\|gh api\|skills-lock\|取得パス\|無効な番号\|上書き" commands/setup.md` でインストール先、インストール方法、lock 記録、取得パス、エラーハンドリングの記述を確認する
+- **やること**: ワークフローのステップ4として対話的スキル選択・インストールフローを記述する。ランキング表示形式、インストール先選択（プロジェクト/グローバル、デフォルト: プロジェクト）、インストール方法（プロジェクト: `gh skill install {repo} {skill} --agent claude-code --scope project`、グローバル: `--scope user`）を含む。`--agent claude-code` を必須とする旨、バージョン未指定時の解決順（最新タグ → デフォルトブランチ HEAD）を明記する。ソース追跡が `gh skill install` の frontmatter 自動注入メタデータで行われる旨（`gh skill list --json skillName,sourceURL,version` で確認、`gh skill update --dry-run` で更新確認）を含む。不正な選択番号入力時の再入力促し、ネットワーク接続なし時の案内、同名スキル上書き確認、`gh skill install` 失敗時の代替手段提示を含む
+- **検証方法**: `grep -c "プロジェクト\|グローバル\|gh skill install\|--scope\|--agent claude-code\|ソース追跡\|無効な番号\|上書き" commands/setup.md` でインストール先、インストール方法、ソース追跡、エラーハンドリングの記述を確認する
 - **関連要件**: REQ-003（Happy Path 全件、Error Scenarios 全件、Boundary Scenarios 全件）
 - **関連スペック**: `specs/setup-command/delta-spec.md#対話的スキル選択・インストール`
 - **依存**: Task 6
@@ -75,7 +72,7 @@
 ### Task 8: commands/setup.md にステップ4.5（セキュリティ検証）を記述（推定: 3分）
 
 - **対象ファイル**: `commands/setup.md`（既存 - Task 3で作成）
-- **やること**: ステップ4のインストール実行前に挟むセキュリティ検証フローを記述する。SKILL.md の内容要約表示（description + 主要セクション見出し）とソース URL、star 数（または install 数）、最終更新日の明示表示、ユーザー確認（y/N）、SKILL.md 取得不可時のリスク明示フローを含む
+- **やること**: ステップ4のインストール実行前に挟むセキュリティ検証フローを記述する。`gh skill preview {repo} {skill}` による SKILL.md の内容要約表示（description + 主要セクション見出し）とソース URL、star 数、最終更新日の明示表示、ユーザー確認（y/N）、SKILL.md 取得不可時のリスク明示フローを含む
 - **検証方法**: `grep -c "SKILL.md.*要約\|確認.*y/N\|セキュリティ\|ソース URL\|最終更新日" commands/setup.md` で確認フローの記述を確認する
 - **関連要件**: REQ-004（Happy Path 全件、Error Scenarios 全件）
 - **関連スペック**: `specs/setup-command/delta-spec.md#セキュリティ検証`
@@ -93,8 +90,8 @@
 ### Task 9b: commands/setup.md にステップ6（スキル作成提案）を記述（推定: 3分）
 
 - **対象ファイル**: `commands/setup.md`（既存 - Task 3で作成）
-- **やること**: ステップ6として、カバーされない技術スタックの検出と skill-creator 連携を記述する。スキル作成提案の閾値（検索結果0件、または全結果が以下のいずれかに該当: (a) skills.sh ソースで install 数 1,000 未満、(b) GitHub ソースで star 数 100 未満）、おすすめプロンプトの提示、description 3部構成テンプレートの提供、ユーザーカスタマイズ後の skill-creator 呼び出しを含む。skill-creator 未インストール時の案内を含む
-- **検証方法**: `grep -c "skill-creator\|3部構成\|1,000\|100" commands/setup.md` でステップ6の主要要素と閾値が記述されていることを確認する
+- **やること**: ステップ6として、カバーされない技術スタックの検出と skill-creator 連携を記述する。スキル作成提案の閾値（検索結果0件、または全結果が star 数 100 未満）、おすすめプロンプトの提示、description 3部構成テンプレートの提供、ユーザーカスタマイズ後の skill-creator 呼び出しを含む。skill-creator 未インストール時の案内を含む
+- **検証方法**: `grep -c "skill-creator\|3部構成\|100" commands/setup.md` でステップ6の主要要素と閾値が記述されていることを確認する
 - **関連要件**: REQ-006（Happy Path 全件、Error Scenarios 全件）
 - **関連スペック**: `specs/setup-command/delta-spec.md#スキル作成提案`
 - **依存**: Task 9a
@@ -133,21 +130,21 @@
   1. `commands/setup.md` が存在し、frontmatter に `description`, `disable-model-invocation: true`, `argument-hint` が含まれている
   2. `commands/setup.md` の本文構造が brainstorm.md パターン（`# /setup コマンド` → `REQUIRED SKILLS:` → `## 目的` → `## ワークフロー`）に従っている
   3. `skills/skill-creator/SKILL.md` が存在し、frontmatter に `name` と `description` が含まれている
-  4. `skills-lock.json` に `skill-creator` エントリが存在する
+  4. ソース追跡が `gh skill install` の frontmatter 自動注入メタデータ方式で記述されている（skills-lock.json は廃止）
   5. `CLAUDE.md` に `/setup` と `skill-creator` の記載がある
   6. `commands/setup.md` にステップ1-7の全ステップが記述されている
-  7. セキュリティ検証（SKILL.md 要約表示 + ソース URL + star 数 + 最終更新日 + ユーザー確認）が記述されている
-  8. フォールバック戦略（skills.sh/GitHub API 障害時、npx 未インストール時、gh 未認証時）が記述されている
+  7. セキュリティ検証（`gh skill preview` による SKILL.md 要約表示 + ソース URL + star 数 + 最終更新日 + ユーザー確認）が記述されている
+  8. フォールバック戦略（gh 未インストール時、gh 未認証時、`gh skill` サブコマンド非対応の旧バージョン時、検索 API エラー時）が記述されている
   9. 冪等性ルール（既存スキルスキップ、差分提案）が記述されている
-  10. ソース別グループ表示（skills.sh 上位 install 数降順、GitHub 下位 star 数降順）が記述されている
+  10. 検索結果の star 数降順表示が記述されている
   11. モノレポ対応（ルート + 1階層下）が記述されている
   12. $ARGUMENTS によるキーワード直接指定が記述されている
   13. CLAUDE.md 構造化テンプレートが記述されている
-  14. skills-lock.json へのエントリ追記が記述されている
-  15. スキル作成提案の閾値（skills.sh: install 数 1,000 未満 / GitHub: star 数 100 未満）が記述されている
+  14. `gh skill` が preview 機能である旨の注記が記述されている
+  15. スキル作成提案の閾値（star 数 100 未満）が記述されている
   16. REQ-001 の Error Scenarios（パースエラー、バージョン不明）が記述されている
-  17. REQ-002 の Boundary Scenarios（npx 未インストール、gh 未認証、0件、50件超）が記述されている
-  18. REQ-003 の Error/Boundary Scenarios（不正入力、ネットワーク断、同名スキル上書き、skills-lock.json 失敗）が記述されている
+  17. REQ-002 の Boundary Scenarios（gh 未インストール、gh 未認証、旧バージョン、0件、`--limit` 上限）が記述されている
+  18. REQ-003 の Error/Boundary Scenarios（不正入力、ネットワーク断、同名スキル上書き、`gh skill install` 失敗）が記述されている
 - **検証方法**: 上記チェックリストを `grep` と `cat` コマンドで一つずつ確認する
 - **関連要件**: REQ-001 - REQ-009（全要件）+ domain-skills REQ-005（MODIFIED）
 - **関連スペック**: `specs/setup-command/delta-spec.md`（全体）

@@ -31,73 +31,63 @@
 
 ---
 
-### Requirement: REQ-002 スキル検索（find-skills + GitHub API 並行）
+### Requirement: REQ-002 スキル検索（gh skill search）
 
-`/setup` コマンドは、検出した技術スタックをキーワードとして skills.sh API と GitHub API を並行で検索し、結果をソース別グループとしてランキング付きで表示しなければならない (SHALL)。
+`/setup` コマンドは、検出した技術スタックをキーワードとして GitHub CLI の `gh skill search` で検索し、結果を star 数降順のランキング付きで表示しなければならない (SHALL)。`gh skill` は GitHub CLI の preview 機能であり、予告なく変更される可能性がある。
 
 #### Happy Path Scenarios
 
-- **GIVEN** 技術スタックとして「Next.js」が検出されている **WHEN** スキル検索を実行する **THEN** skills.sh API（`npx skills find nextjs`）と GitHub API（awesome-claude-skills, everything-claude-code, トピック検索）を並行で実行し、結果をマージする
-- **GIVEN** skills.sh と GitHub API の両方から結果が返る **WHEN** 結果を表示する **THEN** 同名スキルが複数ソースから見つかった場合は重複排除せず両方表示する。ソース別にグループ化して表示する。skills.sh グループを上位に install 数降順で表示し、GitHub グループを下位に star 数降順で表示する。各スキルにソース（skills.sh / GitHub リポジトリ名）・install 数または star 数を明記する
-- **GIVEN** GitHub API 検索を実行する **WHEN** `gh` コマンドが利用可能 **THEN** 認証済み `gh api` を使用して Search API レート制限を 30req/min に拡大する
+- **GIVEN** 技術スタックとして「Next.js」が検出されている **WHEN** スキル検索を実行する **THEN** `gh skill search "nextjs" --limit 15 --json skillName,repo,description,stars` を実行し、GitHub Code Search API で公開リポジトリの SKILL.md を検索する
+- **GIVEN** 検索結果が返る **WHEN** 結果を表示する **THEN** star 数降順でソートし、各スキルに skillName・repo・description・stars を明記して表示する
 
 #### Error Scenarios
 
-- **GIVEN** skills.sh API がタイムアウトまたはエラーを返す **WHEN** スキル検索を実行する **THEN** 「skills.sh からの検索に失敗しました。GitHub からの検索結果のみ表示します」と警告を表示し、GitHub API の結果のみで続行する
-- **GIVEN** GitHub API がレート制限（403）を返す **WHEN** スキル検索を実行する **THEN** 「GitHub API のレート制限に達しました。skills.sh からの検索結果のみ表示します」と警告を表示し、skills.sh の結果のみで続行する
-- **GIVEN** skills.sh API と GitHub API の両方が失敗する **WHEN** スキル検索を実行する **THEN** 「外部検索に失敗しました。手動でスキル名を入力するか、後で再試行してください」と表示する
+- **GIVEN** 検索 API がエラー（レート制限・ネットワーク等）を返す **WHEN** スキル検索を実行する **THEN** エラー内容を表示し、リトライするか手動でスキル名を入力するかをユーザーに確認する
 
 #### Boundary Scenarios
 
-- **GIVEN** `npx` コマンドがインストールされていない **WHEN** skills.sh 検索を実行しようとする **THEN** 警告「npx が利用できません。GitHub からの検索のみ実行します」を表示し、GitHub API 検索のみで続行する（エラーではなく warn レベル）
-- **GIVEN** `gh` コマンドが未認証状態である **WHEN** GitHub API 検索を実行する **THEN** 未認証レート制限（10req/min）で動作し、「gh auth login を実行すると検索レート制限が緩和されます」と案内を表示する
+- **GIVEN** `gh` コマンドがインストールされていない **WHEN** スキル検索を実行しようとする **THEN** 「GitHub CLI (gh) がインストールされていません。https://cli.github.com/ からインストールしてください」と案内し、手動でのスキル名入力に遷移する
+- **GIVEN** `gh` コマンドが未認証状態である **WHEN** スキル検索を実行する **THEN** 「`gh auth login` を実行して認証してください。検索に使用する Code Search API は認証必須です」と案内する
+- **GIVEN** 古い GitHub CLI で `gh skill` サブコマンドが存在しない **WHEN** スキル検索を実行する **THEN** GitHub CLI を最新版にアップグレードするよう案内する
 - **GIVEN** 検索結果が0件である **WHEN** 結果表示を試みる **THEN** 「'{keyword}' に一致するスキルは見つかりませんでした」と表示し、REQ-005 の追加検索フローに遷移する
-- **GIVEN** 検索結果が50件を超える **WHEN** 結果を表示する **THEN** skills.sh グループは上位10件、GitHub グループは上位10件のみ表示し、「他にも {N} 件の結果があります。キーワードを絞り込むことで詳細な結果を取得できます」と案内する
+- **GIVEN** 検索結果が `--limit 15` の上限に達している **WHEN** 結果を表示する **THEN** 「`--page` で次ページを取得できます。キーワードを絞り込むことで詳細な結果を取得できます」と案内する
 
 #### Non-Functional Requirements
 
-- **RELIABILITY**: skills.sh または GitHub API のいずれかが障害でも、他方の結果のみで続行する graceful degradation を実装する
-- **PERFORMANCE**: skills.sh と GitHub API の検索は並行実行し、全体のレスポンス時間を最小化する
+- **RELIABILITY**: `gh skill` が利用できない場合（gh 未インストール・未認証・旧バージョン・API エラー）でも、案内表示と手動入力へのフォールバックにより処理を続行できる graceful degradation を実装する
 
 ---
 
 ### Requirement: REQ-003 対話的スキル選択・インストール
 
-`/setup` コマンドは、検索結果をランキング付きで提示し、ユーザーが対話的にスキルを選択・インストール先を指定できなければならない (SHALL)。インストール先のデフォルトはプロジェクトローカルとする。`/setup` でインストールしたスキルは skills-lock.json にソース URL と SHA-256 ハッシュを記録する。
+`/setup` コマンドは、検索結果をランキング付きで提示し、ユーザーが対話的にスキルを選択・インストール先を指定できなければならない (SHALL)。インストール先のデフォルトはプロジェクトローカルとする。`/setup` でインストールしたスキルのソース追跡は、`gh skill install` が SKILL.md frontmatter に自動注入するメタデータ（ソースリポジトリ・tree SHA）で行う。
 
 #### Happy Path Scenarios
 
-- **GIVEN** スキル検索結果が表示されている **WHEN** ユーザーがインストールするスキルを番号で選択する **THEN** 選択されたスキルについてインストール先（プロジェクト `<project>/.claude/skills/` / グローバル `~/.claude/skills/`）を確認する。デフォルトはプロジェクト
-- **GIVEN** ユーザーがプロジェクトローカルを選択する **WHEN** スキルをインストールする **THEN** `<project>/.claude/skills/<skill-name>/SKILL.md` にインストールする
-- **GIVEN** ユーザーがグローバルを選択する **WHEN** スキルをインストールする **THEN** `~/.claude/skills/<skill-name>/SKILL.md` にインストールする
-- **GIVEN** skills.sh 経由のスキルを選択する **WHEN** インストールを実行する **THEN** `npx skills add {owner}/{repo} --skill {name}` を使用してインストールする
-- **GIVEN** GitHub リポジトリ経由のスキルを選択する **WHEN** インストールを実行する **THEN** `gh api` でリポジトリから SKILL.md を取得し、対象ディレクトリにコピーする。検索ソースごとの取得パスは以下の通り:
-  - awesome-claude-skills: `{skill-name}/SKILL.md` またはルート直下のサブディレクトリ
-  - everything-claude-code: `skills/{skill-name}/SKILL.md`
-  - 個別リポジトリ: ルート直下の `SKILL.md` または `.claude/skills/{name}/SKILL.md`
-- **GIVEN** スキルのインストールが完了する **WHEN** skills-lock.json を更新する **THEN** インストールしたスキルのエントリ（ソース URL + SHA-256 ハッシュ）を skills-lock.json に追記する
+- **GIVEN** スキル検索結果が表示されている **WHEN** ユーザーがインストールするスキルを番号で選択する **THEN** 選択されたスキルについてインストール先（プロジェクト / グローバル）を確認する。デフォルトはプロジェクト
+- **GIVEN** ユーザーがプロジェクトローカルを選択する **WHEN** スキルをインストールする **THEN** `gh skill install {repo} {skill} --agent claude-code --scope project` を実行する
+- **GIVEN** ユーザーがグローバルを選択する **WHEN** スキルをインストールする **THEN** `gh skill install {repo} {skill} --agent claude-code --scope user` を実行する
+- **GIVEN** スキルのインストールが完了する **WHEN** ソース追跡を確認する **THEN** `gh skill list --json skillName,sourceURL,version` でインストール済みスキルのソースを確認でき、`gh skill update --dry-run` で更新の有無を確認できる
 
 #### Error Scenarios
 
-- **GIVEN** `npx skills add` の実行が失敗する **WHEN** スキルインストールを実行する **THEN** エラーメッセージを表示し、「手動でインストールしますか？リポジトリ URL: {url}」と代替手段を提示する
-- **GIVEN** GitHub リポジトリから SKILL.md の取得が失敗する **WHEN** スキルインストールを実行する **THEN** エラーメッセージを表示し、リポジトリ URL を提示して手動クローンを案内する
+- **GIVEN** `gh skill install` の実行が失敗する **WHEN** スキルインストールを実行する **THEN** エラーメッセージを表示し、「手動でインストールしますか？リポジトリ URL: {url}」と代替手段を提示する
 - **GIVEN** ユーザーが表示された番号の範囲外の値を入力する **WHEN** スキル選択を行う **THEN** 「無効な番号です。1-{max} の範囲で入力してください」と表示し、再入力を促す
-- **GIVEN** スキルのインストールは成功したが skills-lock.json の書き込みに失敗する **WHEN** skills-lock.json を更新する **THEN** 警告「skills-lock.json の更新に失敗しました。スキルは正常にインストールされています」を表示し、インストール自体はロールバックしない
 
 #### Boundary Scenarios
 
-- **GIVEN** ネットワーク接続がない状態で GitHub リポジトリからの SKILL.md 取得を試みる **WHEN** タイムアウトが発生する **THEN** 「ネットワーク接続を確認してください。接続回復後に再試行するか、手動でインストールしてください」と案内する
+- **GIVEN** ネットワーク接続がない状態で `gh skill install` を実行する **WHEN** タイムアウトが発生する **THEN** 「ネットワーク接続を確認してください。接続回復後に再試行するか、手動でインストールしてください」と案内する
 - **GIVEN** インストールしようとするスキルと同名のスキルが既に異なるソースからインストール済みである **WHEN** インストールを実行する **THEN** 「'{skill-name}' は既に {existing-source} からインストールされています。上書きしますか？ (y/N)」と確認する
 
 ---
 
 ### Requirement: REQ-004 セキュリティ検証（インストール前の SKILL.md 要約表示 + ユーザー確認）
 
-`/setup` コマンドは、外部スキルのインストール前に SKILL.md の内容を要約表示し、ユーザーの明示的な確認を得なければならない (SHALL)。
+`/setup` コマンドは、外部スキルのインストール前に SKILL.md の内容を要約表示し、ユーザーの明示的な確認を得なければならない (SHALL)。SKILL.md の内容は `gh skill preview {repo} {skill}` で取得する。
 
 #### Happy Path Scenarios
 
-- **GIVEN** ユーザーがインストールするスキルを選択した **WHEN** インストール前の確認を行う **THEN** そのスキルの SKILL.md の description と主要セクション見出しを要約表示し、ソース URL、star 数（または install 数）、最終更新日を明示表示した上で「このスキルをインストールしますか？ (y/N)」と確認する
+- **GIVEN** ユーザーがインストールするスキルを選択した **WHEN** インストール前の確認を行う **THEN** `gh skill preview {repo} {skill}` で取得した SKILL.md の description と主要セクション見出しを要約表示し、ソース URL、star 数、最終更新日を明示表示した上で「このスキルをインストールしますか？ (y/N)」と確認する
 - **GIVEN** ユーザーが確認に「y」と回答する **WHEN** インストールを実行する **THEN** スキルのインストールを続行する
 - **GIVEN** ユーザーが確認に「N」と回答する **WHEN** インストールをスキップする **THEN** そのスキルをスキップし、次のスキル選択に戻る
 
@@ -108,7 +98,7 @@
 #### Non-Functional Requirements
 
 - **SECURITY**: 外部スキルのインストールは必ずユーザー確認を挟む。自動インストールは行わない。これは YAGNI の例外（セキュリティ防御策には YAGNI を適用しない）
-- **SECURITY**: 要約表示時にソース URL、star 数（または install 数）、最終更新日を明示表示し、ユーザーが信頼性を判断できる情報を提供する
+- **SECURITY**: 要約表示時にソース URL、star 数、最終更新日を明示表示し、ユーザーが信頼性を判断できる情報を提供する
 
 ---
 
@@ -130,11 +120,11 @@
 
 ### Requirement: REQ-006 スキル作成提案（skill-creator 連携）
 
-`/setup` コマンドは、検索結果が0件、または全ての結果が以下のいずれかに該当する場合、skill-creator を使ったスキル生成を対話的にガイドしなければならない (SHALL): (a) skills.sh ソースのスキルで install 数 1,000 未満、(b) GitHub ソースのスキルで star 数 100 未満。
+`/setup` コマンドは、検索結果が0件、または全ての結果が star 数 100 未満の場合、skill-creator を使ったスキル生成を対話的にガイドしなければならない (SHALL)。
 
 #### Happy Path Scenarios
 
-- **GIVEN** 検出した技術スタックの一部に対してスキル検索結果が0件、または全ての結果が以下のいずれかに該当する場合: (a) skills.sh ソースのスキルで install 数 1,000 未満、(b) GitHub ソースのスキルで star 数 100 未満 **WHEN** スキル作成提案を行う **THEN** 「以下の技術スタックにはマッチするスキルが見つかりませんでした: {list}。skill-creator で新しいスキルを作成しますか？」と提案する
+- **GIVEN** 検出した技術スタックの一部に対してスキル検索結果が0件、または全ての結果が star 数 100 未満である **WHEN** スキル作成提案を行う **THEN** 「以下の技術スタックにはマッチするスキルが見つかりませんでした: {list}。skill-creator で新しいスキルを作成しますか？」と提案する
 - **GIVEN** ユーザーが skill-creator の使用を承認する **WHEN** スキル作成をガイドする **THEN** skill-creator に渡すおすすめのプロンプト（技術スタック名 + description 3部構成テンプレート）を提示し、ユーザーがカスタマイズ後に skill-creator を呼び出す
 - **GIVEN** ユーザーがスキル作成を辞退する **WHEN** 提案に「いいえ」と回答する **THEN** スキル作成をスキップし、次のステップ（設定ファイル生成）に進む
 
@@ -203,12 +193,11 @@ See: .claude/setup.md
 
 ### Requirement: REQ-009 skill-creator の Forge リポへの同梱
 
-skill-creator（`anthropics/skills/skill-creator`）を Forge リポジトリの `skills/skill-creator/` ディレクトリに同梱し、install.sh の既存ロジックでグローバルにインストールされるようにしなければならない (SHALL)。skills-lock.json にもエントリを追加する。
+skill-creator（`anthropics/skills/skill-creator`）を Forge リポジトリの `skills/skill-creator/` ディレクトリに同梱し、install.sh の既存ロジックでグローバルにインストールされるようにしなければならない (SHALL)。
 
 #### Happy Path Scenarios
 
 - **GIVEN** Forge リポの `skills/skill-creator/SKILL.md` が存在する **WHEN** `./install.sh` を実行する **THEN** `~/.claude/skills/skill-creator/` にシンボリックリンクが作成される（install.sh の既存ロジック）
-- **GIVEN** skills-lock.json を検証する **WHEN** skill-creator のエントリを確認する **THEN** `"skill-creator": { "source": "anthropics/skills", "sourceType": "github", "computedHash": "..." }` のエントリが存在する
 - **GIVEN** CLAUDE.md の Available Skills テーブルを検証する **WHEN** skill-creator の記載を確認する **THEN** skill-creator が Available Skills テーブルに記載されている
 
 #### Error Scenarios

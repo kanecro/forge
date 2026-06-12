@@ -7,7 +7,6 @@ argument-hint: "[keyword]"
 # /setup コマンド
 
 REQUIRED SKILLS:
-- find-skills
 - skill-creator
 
 ## 目的
@@ -95,7 +94,7 @@ REQUIRED SKILLS:
 1. **プロジェクトローカル**: `<project>/.claude/skills/` 配下の全サブディレクトリ
 2. **グローバル**: `~/.claude/skills/` 配下の全サブディレクトリ
 
-各サブディレクトリ内の `SKILL.md` を読み取り、スキル名のリストを構築する。このリストはステップ3以降で「既にインストール済み」として除外するために使用する。
+各サブディレクトリ内の `SKILL.md` を読み取り、スキル名のリストを構築する。このリストはステップ3以降で「既にインストール済み」として除外するために使用する。補助手段として `gh skill list --agent claude-code` でもインストール済みスキルを確認できる。
 
 手動削除されたスキル（ディレクトリが存在しない）は未インストールとして扱い、再度検索結果に含める。
 
@@ -103,52 +102,34 @@ REQUIRED SKILLS:
 
 ### ステップ3: スキル検索
 
-検出した技術スタック名（または `$ARGUMENTS` で指定されたキーワード）を検索クエリとして使用し、以下の検索ソースを**並行**で実行する。
+検出した技術スタック名（または `$ARGUMENTS` で指定されたキーワード）を検索クエリとして使用し、GitHub CLI の `gh skill search` で検索する。
+
+> 注記: `gh skill`（エイリアス `gh skills`）は GitHub CLI の preview 機能であり、予告なく変更される可能性がある。
 
 #### 検索ソースと実行方法
 
-**skills.sh グループ:**
-
 | ソース | 実行方法 | パース方法 |
 |---|---|---|
-| skills.sh | `npx skills find {query}` | CLI 出力をパースし、スキル名・install 数・説明を抽出する |
+| gh skill search | `gh skill search "{query}" --limit 15 --json skillName,repo,description,stars` | JSON 出力から skillName・repo・description・stars を抽出する |
 
-**GitHub グループ:**
-
-| ソース | 実行方法 | パース方法 |
-|---|---|---|
-| awesome-claude-skills | `gh api repos/anthropics/awesome-claude-skills/contents/{query}` | リポジトリのディレクトリ構造から一致するスキルを検出する |
-| everything-claude-code | `gh api repos/anthropics/everything-claude-code/contents/skills` | skills/ ディレクトリ配下からクエリに一致するスキルを検索する |
-| GitHub トピック検索 | `gh api search/repositories?q={query}+topic:claude-skill` | Search API のレスポンスから star 数・説明を抽出する |
+`gh skill search` は GitHub Code Search API で公開リポジトリの SKILL.md を検索し、関連度順（名前にクエリを含むものが先頭）で結果を返す。
 
 #### 結果表示
 
-ソース別にグループ化して表示する:
-
-- **skills.sh グループ**を上位に表示: install 数の降順でソートする
-- **GitHub グループ**を下位に表示: star 数の降順でソートする
-
-同名のスキルが複数ソースから見つかった場合は重複排除せず、両方を表示する。各スキルにソース（skills.sh / awesome-claude-skills / everything-claude-code / GitHub リポジトリ名）を明記する。
+star 数の降順でソートして表示する。各スキルに skillName・repo・description・stars を明記する。
 
 表示形式の例:
 
 ```
---- skills.sh ---
-[1] my-framework-skill (skills.sh | 5,200 installs)
+[1] my-framework-skill (owner/skill-repo | 5,200 stars)
     フレームワーク固有のベストプラクティス
-[2] my-db-patterns (skills.sh | 3,100 installs)
+[2] my-db-patterns (owner/db-repo | 3,100 stars)
     DB アクセスのパターン集
-
---- GitHub ---
-[3] my-framework-skill (awesome-claude-skills | 39K stars)
-    Framework development patterns
-[4] my-advanced-skill (user/my-skill-repo | 250 stars)
-    Advanced development patterns
 ```
 
 #### 件数制限
 
-検索結果が50件を超える場合は、skills.sh グループは上位10件、GitHub グループは上位10件のみ表示し、「他にも {N} 件の結果があります。キーワードを絞り込むことで詳細な結果を取得できます」と案内する。
+`--limit 15`（デフォルト）で上位15件を取得・表示する。さらに結果が必要な場合は「`--page` で次ページを取得できます。キーワードを絞り込むことで詳細な結果を取得できます」と案内する。
 
 #### 検索結果0件時
 
@@ -156,13 +137,10 @@ REQUIRED SKILLS:
 
 #### フォールバック戦略
 
-- **npx が利用できない場合**: 警告「npx が利用できません。GitHub からの検索のみ実行します」を表示し、GitHub API 検索のみで続行する（エラーではなく warn レベル）
-- **gh が未認証の場合**: 未認証レート制限（10req/min）で動作し、「`gh auth login` を実行すると検索レート制限が緩和されます」と案内を表示する
-- **skills.sh がタイムアウト/エラーの場合**: 「skills.sh からの検索に失敗しました。GitHub からの検索結果のみ表示します」と警告し、GitHub API の結果のみで続行する
-- **GitHub API がレート制限（403）の場合**: 「GitHub API のレート制限に達しました。skills.sh からの検索結果のみ表示します」と警告し、skills.sh の結果のみで続行する
-- **両方が失敗した場合**: 「外部検索に失敗しました。手動でスキル名を入力するか、後で再試行してください」と表示する
-
-**信頼性要件**: skills.sh または GitHub API のいずれかが障害でも、他方の結果のみで続行する graceful degradation を実装する。
+- **gh が未インストールの場合**: 「GitHub CLI (gh) がインストールされていません。https://cli.github.com/ からインストールしてください」と案内し、手動でのスキル名入力に遷移する
+- **gh が未認証の場合**: 「`gh auth login` を実行して認証してください。検索に使用する Code Search API は認証必須です」と案内する
+- **古い gh で `gh skill` サブコマンドが存在しない場合**: 「`gh skill` コマンドが利用できません。GitHub CLI を最新版にアップグレードしてください」と案内する
+- **検索 API エラー（レート制限・ネットワーク等）の場合**: エラー内容を表示し、リトライするか手動でスキル名を入力するかをユーザーに確認する
 
 ---
 
@@ -195,11 +173,11 @@ REQUIRED SKILLS:
 
 **インストール実行前に必ず以下のセキュリティ検証を行う。自動インストールは行わない。**
 
-1. **SKILL.md 内容の要約表示**: そのスキルの SKILL.md の description と主要セクション見出しを要約表示する
+1. **SKILL.md 内容の要約表示**: `gh skill preview {repo} {skill}`（エイリアス `gh skill show`）で SKILL.md の内容とファイルツリーを取得し、description と主要セクション見出しを要約表示する
 
 2. **信頼性情報の明示表示**:
    - ソース URL
-   - star 数（GitHub ソース）または install 数（skills.sh ソース）
+   - star 数
    - 最終更新日
 
 3. **ユーザー確認**: 「このスキルをインストールしますか？ (y/N)」と確認する
@@ -210,50 +188,33 @@ REQUIRED SKILLS:
 
 #### インストール実行
 
-インストール方法はスキルのソースによって分岐する:
+インストール先選択の結果に応じて `--scope` を指定し、`gh skill install`（エイリアス `gh skill add`）を実行する:
 
-**skills.sh 経由のスキル:**
+**プロジェクトローカル:**
 ```
-npx skills add {owner}/{repo} --skill {name}
-```
-
-**GitHub リポジトリ経由のスキル:**
-
-`gh api` でリポジトリから SKILL.md を取得し、対象ディレクトリにコピーする。検索ソースごとの SKILL.md 取得パス:
-
-| ソース | SKILL.md 取得パス |
-|---|---|
-| awesome-claude-skills | `{skill-name}/SKILL.md` |
-| everything-claude-code | `skills/{skill-name}/SKILL.md` |
-| 個別リポジトリ | ルート直下の `SKILL.md` または `.claude/skills/{name}/SKILL.md` |
-
-個別リポジトリの場合は、まずルート直下の `SKILL.md` を試み、存在しなければ `.claude/skills/{name}/SKILL.md` を試みる。
-
-#### skills-lock.json への記録
-
-インストール完了後、skills-lock.json にエントリを追記する:
-
-```json
-{
-  "skills": {
-    "<skill-name>": {
-      "source": "<github-url or skills.sh-url>",
-      "sourceType": "github",
-      "computedHash": "<SHA-256>"
-    }
-  }
-}
+gh skill install {repo} {skill} --agent claude-code --scope project
 ```
 
-- `computedHash` は SKILL.md の内容から SHA-256 ハッシュを算出する
-- skills-lock.json が存在しない場合は新規作成する
+**グローバル:**
+```
+gh skill install {repo} {skill} --agent claude-code --scope user
+```
+
+- `--agent claude-code` は必須とする（対象エージェントの指定）
+- `--scope project` はカレント git リポジトリ内のホスト固有ディレクトリ、`--scope user` はホームディレクトリ配下にインストールする
+- バージョン未指定時は最新タグ → デフォルトブランチ HEAD の順で解決される
+
+#### ソース追跡
+
+ソース追跡は `gh skill install` が SKILL.md frontmatter に自動注入するメタデータ（ソースリポジトリ・tree SHA）で行われる。別ファイルでの記録は不要。
+
+- インストール済みスキルとソースの確認: `gh skill list --json skillName,sourceURL,version`
+- 更新の有無の確認: `gh skill update --dry-run`
 
 #### エラーハンドリング
 
-- **`npx skills add` 失敗時**: エラーメッセージを表示し、「手動でインストールしますか？リポジトリ URL: {url}」と代替手段を提示する
-- **GitHub からの SKILL.md 取得失敗時**: エラーメッセージを表示し、リポジトリ URL を提示して手動クローンを案内する
+- **`gh skill install` 失敗時**: エラーメッセージを表示し、「手動でインストールしますか？リポジトリ URL: {url}」と代替手段を提示する
 - **ネットワーク接続なし時**: 「ネットワーク接続を確認してください。接続回復後に再試行するか、手動でインストールしてください」と案内する
-- **skills-lock.json 書き込み失敗時**: 警告「skills-lock.json の更新に失敗しました。スキルは正常にインストールされています」を表示し、インストール自体はロールバックしない
 
 ---
 
@@ -283,9 +244,7 @@ npx skills add {owner}/{repo} --skill {name}
 
 以下のいずれかに該当する技術スタックを「カバーされていない」と判定する:
 - その技術スタックに対する検索結果が0件
-- その技術スタックに対する全ての検索結果が以下のいずれかに該当する:
-  - (a) skills.sh ソースのスキルで install 数が 1,000 未満
-  - (b) GitHub ソースのスキルで star 数が 100 未満
+- その技術スタックに対する全ての検索結果が star 数 100 未満
 
 #### 提案フロー
 
@@ -463,4 +422,4 @@ See: .claude/setup.md
 - **セキュリティ**: 外部スキルのインストールは必ずユーザー確認を挟む。自動インストールは行わない（YAGNI はセキュリティ防御策に適用しない）
 - **コンテキスト保護**: setup.md には SKILL.md のインライン展開を禁止する。スキル名と簡易説明のみ記載する
 - **既存内容の保護**: CLAUDE.md の既存内容を破壊しない。追記のみ許可する
-- **graceful degradation**: 外部サービス（skills.sh, GitHub API）の障害時は、利用可能な情報源のみで処理を続行する
+- **graceful degradation**: `gh skill` が利用できない場合（gh 未インストール・未認証・旧バージョン・API エラー）は、フォールバック戦略に従って案内を表示し、手動入力で処理を続行する
